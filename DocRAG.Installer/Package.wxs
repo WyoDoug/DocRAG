@@ -68,6 +68,34 @@
                       Execute="immediate"
                       Return="ignore" />
 
+
+        <!-- Open download pages in default browser -->
+        <Property Id="WIXSHELLEXECTARGET" Secure="yes" />
+
+        <CustomAction Id="OpenMongoDownload"
+                      Property="WIXSHELLEXECTARGET"
+                      Value="https://www.mongodb.com/try/download/community"
+                      Execute="immediate"
+                      Return="check" />
+        <CustomAction Id="LaunchMongoDownload"
+                      BinaryRef="Wix4UtilCA_X86"
+                      DllEntry="WixShellExec"
+                      Execute="immediate"
+                      Return="ignore"
+                      Impersonate="yes" />
+
+        <CustomAction Id="OpenOllamaDownload"
+                      Property="WIXSHELLEXECTARGET"
+                      Value="https://ollama.com"
+                      Execute="immediate"
+                      Return="check" />
+        <CustomAction Id="LaunchOllamaDownload"
+                      BinaryRef="Wix4UtilCA_X86"
+                      DllEntry="WixShellExec"
+                      Execute="immediate"
+                      Return="ignore"
+                      Impersonate="yes" />
+
         <!-- Patch appsettings.json with user-provided values (deferred, after file install) -->
         <SetProperty Id="PatchAppSettings"
                      Before="PatchAppSettings"
@@ -124,6 +152,12 @@
                     <Publish Event="DoAction" Value="TestMongoConnection" />
                 </Control>
 
+                <Control Id="DownloadBtn" Type="PushButton" X="245" Y="182" Width="100" Height="17"
+                         Text="Download MongoDB">
+                    <Publish Event="DoAction" Value="OpenMongoDownload" Order="1" />
+                    <Publish Event="DoAction" Value="LaunchMongoDownload" Order="2" />
+                </Control>
+
                 <Control Id="StatusText" Type="Text" X="25" Y="204" Width="320" Height="14"
                          NoPrefix="yes" Property="MONGOSTATUS" />
 
@@ -166,6 +200,12 @@
                 <Control Id="TestBtn" Type="PushButton" X="135" Y="142" Width="100" Height="17"
                          Text="Test Connection">
                     <Publish Event="DoAction" Value="TestOllamaConnection" />
+                </Control>
+
+                <Control Id="DownloadBtn" Type="PushButton" X="245" Y="142" Width="100" Height="17"
+                         Text="Download Ollama">
+                    <Publish Event="DoAction" Value="OpenOllamaDownload" Order="1" />
+                    <Publish Event="DoAction" Value="LaunchOllamaDownload" Order="2" />
                 </Control>
 
                 <Control Id="StatusText" Type="Text" X="25" Y="164" Width="320" Height="14"
