@@ -6,18 +6,15 @@ on:
   pull_request:
     branches: [master]
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.x'
 
@@ -33,6 +30,5 @@ jobs:
       - name: Kill orphan processes
         if: always()
         run: |
-          Get-Process -Name conhost -ErrorAction SilentlyContinue |
-            Where-Object { $_.StartTime -gt (Get-Date).AddMinutes(-10) } |
+          Get-Process -Name dotnet, VBCSCompiler -ErrorAction SilentlyContinue |
             Stop-Process -Force -ErrorAction SilentlyContinue
