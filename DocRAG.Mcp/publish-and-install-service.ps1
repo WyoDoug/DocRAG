@@ -131,5 +131,5 @@ Write-Output "ProjectPath: $resolvedProjectPath"
 Write-Output "ServiceName: $ServiceName"
 Write-Output "InstallDirectory: $resolvedInstallDirectory"
 Write-Output "Status: $($service.Status)"
-Write-Output 'HealthUrl: https://localhost:6001/health'
-Write-Output 'McpUrl: https://localhost:6001/mcp'
+Write-Output 'HealthUrl: http://localhost:6100/health'
+Write-Output 'McpUrl: http://localhost:6100/mcp'

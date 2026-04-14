@@ -93,7 +93,7 @@ ollama serve
 dotnet run --project DocRAG.Mcp
 ```
 
-The server starts on `http://localhost:6000` by default. In the `Development` environment, it also exposes `https://localhost:6001`.
+The server starts on `http://localhost:6100` by default.
 
 ### 5. Connect Your AI Assistant
 
@@ -104,7 +104,7 @@ Add to your MCP client configuration (e.g., `.mcp.json` in your project root):
   "mcpServers": {
     "docrag": {
       "type": "http",
-      "url": "http://localhost:6000/mcp",
+      "url": "http://localhost:6100/mcp",
       "timeout": 60
     }
   }
@@ -119,7 +119,7 @@ For **Claude Code**, place this file in your project root or home directory. For
 dotnet publish DocRAG.Mcp/DocRAG.Mcp.csproj -c Release -p:Platform=x64
 ```
 
-The published output is configured for `win-x64`, includes Windows service hosting support, and uses the single MCP HTTP endpoint at `http://localhost:6000/mcp` by default. Register the published executable as the Windows service target rather than using `dotnet run` or `dotnet build` output.
+The published output is configured for `win-x64`, includes Windows service hosting support, and uses the single MCP HTTP endpoint at `http://localhost:6100/mcp` by default. Register the published executable as the Windows service target rather than using `dotnet run` or `dotnet build` output.
 
 ### 7. Install as a Windows Service
 

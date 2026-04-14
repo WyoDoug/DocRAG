@@ -170,5 +170,5 @@ $service = Get-Service -Name $ServiceName
 Write-Output "ServiceName: $ServiceName"
 Write-Output "InstallDirectory: $targetDirectory"
 Write-Output "Status: $($service.Status)"
-Write-Output 'HealthUrl: http://localhost:6000/health'
-Write-Output 'McpUrl: http://localhost:6000/mcp'
+Write-Output 'HealthUrl: http://localhost:6100/health'
+Write-Output 'McpUrl: http://localhost:6100/mcp'

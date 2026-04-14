@@ -2,7 +2,7 @@
   "mcpServers": {
     "docrag": {
       "type": "http",
-      "url": "http://localhost:6000/mcp",
+      "url": "http://localhost:6100/mcp",
       "timeout": 60
     }
   }
