@@ -41,7 +41,7 @@ jobs:
         run: dotnet test DocRAG.slnx --configuration Release --no-build
 
       - name: Publish
-        run: dotnet publish DocRAG.Mcp/DocRAG.Mcp.csproj --configuration Release --runtime win-x64 --self-contained true --output ./publish
+        run: dotnet publish DocRAG.Mcp/DocRAG.Mcp.csproj --configuration Release --runtime win-x64 --self-contained true --output ./artifacts/publish
 
       - name: Install WiX
         run: dotnet tool install --global wix --version 5.0.2
@@ -52,19 +52,19 @@ jobs:
           wix extension add WixToolset.UI.wixext/5.0.2
 
       - name: Build MSI
-        run: wix build DocRAG.Installer/Package.wxs -d PublishDir=./publish -d Version=${{ env.PackageVersion }} -ext WixToolset.Util.wixext -ext WixToolset.UI.wixext -arch x64 -o ./DocRAG.Mcp.msi
+        run: wix build DocRAG.Installer/Package.wxs -d PublishDir=./artifacts/publish -d Version=${{ env.PackageVersion }} -ext WixToolset.Util.wixext -ext WixToolset.UI.wixext -arch x64 -o ./artifacts/DocRAG.Mcp.msi
 
       - name: Upload MSI artifact
         uses: actions/upload-artifact@v4
         with:
           name: DocRAG.Mcp-${{ env.PackageVersion }}
-          path: ./DocRAG.Mcp.msi
+          path: ./artifacts/DocRAG.Mcp.msi
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: ./DocRAG.Mcp.msi
+          files: ./artifacts/DocRAG.Mcp.msi
 
       - name: Kill orphan processes
         if: always()
