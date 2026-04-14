@@ -1,0 +1,48 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+
+    <Package Name="DocRAG MCP Server"
+             Manufacturer="Jackalope Technologies, Inc."
+             Version="$(var.Version)"
+             UpgradeCode="CA600210-74B0-4CDC-90AC-A2798F2136F6"
+             Scope="perMachine">
+
+        <MajorUpgrade DowngradeErrorMessage="A newer version of DocRAG is already installed." />
+        <MediaTemplate EmbedCab="yes" />
+
+        <StandardDirectory Id="ProgramFiles64Folder">
+            <Directory Id="INSTALLFOLDER" Name="DocRAG">
+                <Directory Id="MCPFOLDER" Name="DocRAG.Mcp" />
+            </Directory>
+        </StandardDirectory>
+
+        <ComponentGroup Id="PublishOutput" Directory="MCPFOLDER">
+            <Files Include="$(var.PublishDir)\**" />
+        </ComponentGroup>
+
+        <Feature Id="Main" Title="DocRAG MCP Server" Level="1">
+            <ComponentGroupRef Id="PublishOutput" />
+            <ComponentRef Id="ServiceComponent" />
+        </Feature>
+
+        <Component Id="ServiceComponent" Directory="MCPFOLDER" Guid="E697864C-7E01-457A-A2BA-0F0C655D64F2">
+            <ServiceInstall Id="DocRAGMcpService"
+                            Type="ownProcess"
+                            Name="DocRAGMcp"
+                            DisplayName="DocRAG MCP Server"
+                            Description="Documentation RAG system — MCP server for AI-assisted code documentation lookup."
+                            Start="auto"
+                            ErrorControl="normal"
+                            Account="LocalSystem" />
+
+            <ServiceControl Id="StartDocRAGMcp"
+                            Name="DocRAGMcp"
+                            Start="install"
+                            Stop="both"
+                            Remove="uninstall"
+                            Wait="yes" />
+        </Component>
+
+    </Package>
+
+</Wix>
