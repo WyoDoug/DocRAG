@@ -47,10 +47,12 @@ jobs:
         run: dotnet tool install --global wix --version 5.0.2
 
       - name: Add WiX extensions
-        run: wix extension add WixToolset.Util.wixext/5.0.2
+        run: |
+          wix extension add WixToolset.Util.wixext/5.0.2
+          wix extension add WixToolset.UI.wixext/5.0.2
 
       - name: Build MSI
-        run: wix build DocRAG.Installer/Package.wxs -d PublishDir=./publish -d Version=${{ env.PackageVersion }} -ext WixToolset.Util.wixext -arch x64 -o ./DocRAG.Mcp.msi
+        run: wix build DocRAG.Installer/Package.wxs -d PublishDir=./publish -d Version=${{ env.PackageVersion }} -ext WixToolset.Util.wixext -ext WixToolset.UI.wixext -arch x64 -o ./DocRAG.Mcp.msi
 
       - name: Upload MSI artifact
         uses: actions/upload-artifact@v4
