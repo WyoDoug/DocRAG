@@ -50,34 +50,44 @@ learn.microsoft   --+      +------+------+
 
 ## Quick Start (Windows Installer)
 
-The fastest way to get DocRAG running is the MSI installer from [GitHub Releases](https://github.com/WyoDoug/DocRAG/releases). It installs DocRAG as a Windows service, configures MongoDB and Ollama connections, and starts automatically.
+The fastest way to get DocRAG running is the MSI installer from [GitHub Releases](https://github.com/WyoDoug/DocRAG/releases). It installs DocRAG as a Windows service, configures connections to MongoDB and Ollama, and starts automatically.
 
-### Step 1: Install MongoDB Community Edition
+DocRAG requires two free, open-source tools as prerequisites. Both are available as community editions at no cost.
 
-1. Download from [mongodb.com/try/download/community](https://www.mongodb.com/try/download/community)
+### Step 1: Install MongoDB Community Edition (free)
+
+MongoDB stores all scraped documentation, chunks, and vector embeddings.
+
+1. Download the **Community Edition** from [mongodb.com/try/download/community](https://www.mongodb.com/try/download/community)
 2. Run the installer, choose **Complete** setup type
 3. Keep the default settings: **port 27017**, **Run as a Service** checked
-4. After install, verify it's running: open a terminal and run `mongosh` - you should see a connection prompt
+4. After install, verify it's running: open a terminal and run `mongosh` -- you should see a connection prompt
 
-MongoDB stores all scraped documentation, chunks, and embeddings. It must be running before DocRAG starts.
+> **Using Docker or a remote server?** No problem. The DocRAG installer lets you enter any MongoDB connection string (e.g. `mongodb://your-server:27017`). You can also run MongoDB in Docker: `docker run -d -p 27017:27017 --name docrag-mongo mongo:latest`
 
-### Step 2: Install Ollama
+### Step 2: Install Ollama (free)
+
+Ollama runs AI models locally for document classification and embedding generation. No API keys or cloud accounts needed.
 
 1. Download from [ollama.com](https://ollama.com)
-2. Run the installer - Ollama runs as a background service on **port 11434**
+2. Run the installer -- Ollama runs as a background service on **port 11434**
 3. After install, verify it's running: open a terminal and run `ollama list`
 
-Ollama provides the local AI models for document classification and embedding. DocRAG automatically pulls the required models on first use:
-- `nomic-embed-text` - generates vector embeddings (768 dimensions)
-- `qwen3:1.7b` - classifies pages and optional re-ranking
+DocRAG automatically pulls the required models on first use:
+- `nomic-embed-text` -- generates vector embeddings (768 dimensions)
+- `qwen3:1.7b` -- classifies documentation pages and optional re-ranking
+
+> **Running Ollama elsewhere?** The DocRAG installer lets you point to any Ollama endpoint (e.g. `http://your-gpu-server:11434`).
 
 ### Step 3: Install DocRAG
 
 1. Download `DocRAG.Mcp.msi` from the [latest release](https://github.com/WyoDoug/DocRAG/releases/latest)
 2. Run the installer
-3. **MongoDB Configuration** - the installer defaults to `mongodb://localhost:27017` with database `DocRAG`. If your MongoDB is on a different host or port, enter the connection string. Use **Reset to Local Defaults** if you've changed it and want to go back.
-4. **Ollama Configuration** - defaults to `http://localhost:11434`. Change only if Ollama is running elsewhere.
-5. Click **Install** - the installer copies files to `Program Files\DocRAG\DocRAG.Mcp`, writes your connection settings to `appsettings.json`, and starts the **DocRAGMcp** Windows service.
+3. **MongoDB Configuration** -- the installer defaults to `mongodb://localhost:27017` with database `DocRAG`. Use the **Test Connection** button to verify MongoDB is reachable. If your MongoDB is on a different host, enter the connection string. **Reset to Local Defaults** reverts to the standard local settings.
+4. **Ollama Configuration** -- defaults to `http://localhost:11434`. Use **Test Connection** to verify. Change only if Ollama is running on another machine.
+5. Click **Install** -- files are copied to `Program Files\DocRAG\DocRAG.Mcp`, your connection settings are written to `appsettings.json`, and the **DocRAGMcp** Windows service starts automatically.
+
+> **Don't have the prerequisites yet?** The installer includes **Download** buttons on each configuration page that open your browser to the MongoDB and Ollama download pages. Install them, then click **Test Connection** to verify before proceeding.
 
 ### Step 4: Connect Your AI Assistant
 
