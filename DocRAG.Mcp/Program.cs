@@ -44,6 +44,7 @@ using DocRAG.Mcp.Tools;
 using ModelContextProtocol.Protocol;
 
 using Serilog;
+using Serilog.Core;
 
 using Serilog.Events;
 
@@ -77,9 +78,11 @@ Directory.CreateDirectory(logDirectory);
 
 
 
+var levelSwitch = new LoggingLevelSwitch(LogEventLevel.Warning);
+
 Log.Logger = new LoggerConfiguration()
 
-             .MinimumLevel.Information()
+             .MinimumLevel.ControlledBy(levelSwitch)
 
              .MinimumLevel.Override(MicrosoftAspNetCoreNamespace, LogEventLevel.Warning)
 
@@ -106,6 +109,7 @@ const string ServiceName = "DocRAG MCP";
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.UseSerilog();
+builder.Services.AddSingleton(levelSwitch);
 
 builder.Services.AddWindowsService(options =>
 
@@ -145,17 +149,9 @@ builder.Services.AddSingleton<IEmbeddingProvider, OllamaEmbeddingProvider>();
 
 builder.Services.AddSingleton<IVectorSearchProvider, InMemoryBruteForceVectorSearch>();
 
-// Re-ranker (Ollama cross-encoder or no-op fallback)
-
-var ollamaSettings = builder.Configuration.GetSection(OllamaSettings.SectionName).Get<OllamaSettings>();
-
-if (ollamaSettings?.ReRankingEnabled == true)
-
-    builder.Services.AddSingleton<IReRanker, OllamaReRanker>();
-
-else
-
-    builder.Services.AddSingleton<IReRanker, NoOpReRanker>();
+// Re-ranker (toggleable at runtime via MCP tool)
+builder.Services.AddSingleton<ToggleableReRanker>();
+builder.Services.AddSingleton<IReRanker>(sp => sp.GetRequiredService<ToggleableReRanker>());
 
 
 
