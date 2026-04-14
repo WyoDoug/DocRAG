@@ -1,4 +1,5 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui"
      xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
 
     <Package Name="DocRAG MCP Server"
@@ -10,27 +11,30 @@
         <MajorUpgrade DowngradeErrorMessage="A newer version of DocRAG is already installed." />
         <MediaTemplate EmbedCab="yes" />
 
+        <!-- Properties for user-configurable connection strings -->
+        <Property Id="MONGOCONNECTION" Value="mongodb://localhost:27017" />
+        <Property Id="MONGODATABASE" Value="DocRAG" />
+        <Property Id="OLLAMAENDPOINT" Value="http://localhost:11434" />
+
+        <!-- Directories -->
         <StandardDirectory Id="ProgramFiles64Folder">
             <Directory Id="INSTALLFOLDER" Name="DocRAG">
                 <Directory Id="MCPFOLDER" Name="DocRAG.Mcp" />
             </Directory>
         </StandardDirectory>
 
+        <!-- Published files -->
         <ComponentGroup Id="PublishOutput" Directory="MCPFOLDER">
             <Files Include="$(var.PublishDir)\**" />
         </ComponentGroup>
 
-        <Feature Id="Main" Title="DocRAG MCP Server" Level="1">
-            <ComponentGroupRef Id="PublishOutput" />
-            <ComponentRef Id="ServiceComponent" />
-        </Feature>
-
+        <!-- Windows service -->
         <Component Id="ServiceComponent" Directory="MCPFOLDER" Guid="E697864C-7E01-457A-A2BA-0F0C655D64F2">
             <ServiceInstall Id="DocRAGMcpService"
                             Type="ownProcess"
                             Name="DocRAGMcp"
                             DisplayName="DocRAG MCP Server"
-                            Description="Documentation RAG system — MCP server for AI-assisted code documentation lookup."
+                            Description="Documentation RAG system - MCP server for AI-assisted code documentation lookup."
                             Start="auto"
                             ErrorControl="normal"
                             Account="LocalSystem" />
@@ -42,6 +46,117 @@
                             Remove="uninstall"
                             Wait="yes" />
         </Component>
+
+        <Feature Id="Main" Title="DocRAG MCP Server" Level="1">
+            <ComponentGroupRef Id="PublishOutput" />
+            <ComponentRef Id="ServiceComponent" />
+        </Feature>
+
+        <!-- Custom action: patch appsettings.json with user-provided values -->
+        <SetProperty Id="PatchAppSettings"
+                     Before="PatchAppSettings"
+                     Sequence="execute"
+                     Value="&quot;powershell.exe&quot; -NoProfile -ExecutionPolicy Bypass -Command &quot;$f = Join-Path '[MCPFOLDER]' 'appsettings.json'; $j = Get-Content $f -Raw | ConvertFrom-Json; $j.MongoDB.Profiles.local.ConnectionString = '[MONGOCONNECTION]'; $j.MongoDB.Profiles.local.DatabaseName = '[MONGODATABASE]'; $j.Ollama.Endpoint = '[OLLAMAENDPOINT]'; $j | ConvertTo-Json -Depth 10 | Set-Content $f -Encoding UTF8&quot;" />
+
+        <CustomAction Id="PatchAppSettings"
+                      BinaryRef="Wix4UtilCA_X86"
+                      DllEntry="WixQuietExec"
+                      Execute="deferred"
+                      Return="ignore"
+                      Impersonate="no" />
+
+        <InstallExecuteSequence>
+            <Custom Action="PatchAppSettings" After="InstallFiles" Condition="NOT Installed OR REINSTALL" />
+        </InstallExecuteSequence>
+
+        <!-- UI: use the standard InstallDir set and inject custom dialogs -->
+        <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="MCPFOLDER" />
+
+        <UI>
+            <!-- MongoDB configuration dialog -->
+            <Dialog Id="MongoDbDlg" Width="370" Height="270" Title="MongoDB Configuration">
+                <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="WixUI_Bmp_Banner" />
+                <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+
+                <Control Id="Title" Type="Text" X="20" Y="10" Width="290" Height="14"
+                         Transparent="yes" NoPrefix="yes"
+                         Text="{\WixUI_Font_Title}MongoDB Connection" />
+
+                <Control Id="Description" Type="Text" X="25" Y="55" Width="320" Height="35"
+                         Transparent="yes" NoPrefix="yes"
+                         Text="DocRAG stores documentation in MongoDB. If running locally on this machine, the default connection (port 27017) will work. Otherwise, enter your MongoDB connection string." />
+
+                <Control Id="ConnLabel" Type="Text" X="25" Y="98" Width="320" Height="12"
+                         Text="Connection String:" />
+                <Control Id="ConnEdit" Type="Edit" X="25" Y="112" Width="320" Height="18"
+                         Property="MONGOCONNECTION" />
+
+                <Control Id="DbLabel" Type="Text" X="25" Y="140" Width="320" Height="12"
+                         Text="Database Name:" />
+                <Control Id="DbEdit" Type="Edit" X="25" Y="154" Width="200" Height="18"
+                         Property="MONGODATABASE" />
+
+                <Control Id="ResetBtn" Type="PushButton" X="25" Y="184" Width="130" Height="17"
+                         Text="Reset to Local Defaults">
+                    <Publish Property="MONGOCONNECTION" Value="mongodb://localhost:27017" />
+                    <Publish Property="MONGODATABASE" Value="DocRAG" />
+                </Control>
+
+                <Control Id="BottomLine" Type="Line" X="0" Y="224" Width="370" Height="0" />
+                <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="&amp;Back">
+                    <Publish Event="NewDialog" Value="InstallDirDlg" />
+                </Control>
+                <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="&amp;Next">
+                    <Publish Event="NewDialog" Value="OllamaDlg" />
+                </Control>
+                <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="Cancel">
+                    <Publish Event="SpawnDialog" Value="CancelDlg" />
+                </Control>
+            </Dialog>
+
+            <!-- Ollama configuration dialog -->
+            <Dialog Id="OllamaDlg" Width="370" Height="270" Title="Ollama Configuration">
+                <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="WixUI_Bmp_Banner" />
+                <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+
+                <Control Id="Title" Type="Text" X="20" Y="10" Width="290" Height="14"
+                         Transparent="yes" NoPrefix="yes"
+                         Text="{\WixUI_Font_Title}Ollama AI Engine" />
+
+                <Control Id="Description" Type="Text" X="25" Y="55" Width="320" Height="35"
+                         Transparent="yes" NoPrefix="yes"
+                         Text="DocRAG uses Ollama for document embeddings and classification. Ollama should be installed and running on this machine. Required AI models are pulled automatically on first use." />
+
+                <Control Id="EndpointLabel" Type="Text" X="25" Y="98" Width="320" Height="12"
+                         Text="Ollama Endpoint:" />
+                <Control Id="EndpointEdit" Type="Edit" X="25" Y="112" Width="320" Height="18"
+                         Property="OLLAMAENDPOINT" />
+
+                <Control Id="ResetBtn" Type="PushButton" X="25" Y="142" Width="130" Height="17"
+                         Text="Reset to Local Default">
+                    <Publish Property="OLLAMAENDPOINT" Value="http://localhost:11434" />
+                </Control>
+
+                <Control Id="InfoText" Type="Text" X="25" Y="172" Width="320" Height="40"
+                         Transparent="yes" NoPrefix="yes"
+                         Text="If Ollama is not yet installed, the service will start but AI features will be unavailable. Install Ollama from https://ollama.com — it's free and runs locally." />
+
+                <Control Id="BottomLine" Type="Line" X="0" Y="224" Width="370" Height="0" />
+                <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="&amp;Back">
+                    <Publish Event="NewDialog" Value="MongoDbDlg" />
+                </Control>
+                <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="&amp;Next">
+                    <Publish Event="NewDialog" Value="VerifyReadyDlg" />
+                </Control>
+                <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="Cancel">
+                    <Publish Event="SpawnDialog" Value="CancelDlg" />
+                </Control>
+            </Dialog>
+
+            <!-- Wire custom dialogs into the install flow -->
+            <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="MongoDbDlg" Order="4" />
+            <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="OllamaDlg" Order="4" />
+        </UI>
 
     </Package>
 
