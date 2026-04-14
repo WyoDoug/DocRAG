@@ -7,6 +7,9 @@ on:
   pull_request:
     branches: [master]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -28,8 +31,10 @@ jobs:
           } else {
               $version = "0.0.0"
           }
+          $msiVersion = ($version -split '-')[0]
           echo "PackageVersion=$version" >> $env:GITHUB_ENV
-          Write-Host "Version: $version"
+          echo "MsiVersion=$msiVersion" >> $env:GITHUB_ENV
+          Write-Host "Version: $version (MSI: $msiVersion)"
 
       - name: Restore
         run: dotnet restore DocRAG.slnx
@@ -52,7 +57,7 @@ jobs:
           wix extension add WixToolset.UI.wixext/5.0.2
 
       - name: Build MSI
-        run: wix build DocRAG.Installer/Package.wxs -d PublishDir=./artifacts/${{ env.PackageVersion }}/publish -d Version=${{ env.PackageVersion }} -ext WixToolset.Util.wixext -ext WixToolset.UI.wixext -arch x64 -o ./artifacts/${{ env.PackageVersion }}/DocRAG.Mcp.msi
+        run: wix build DocRAG.Installer/Package.wxs -d PublishDir=${{ github.workspace }}/artifacts/${{ env.PackageVersion }}/publish -d Version=${{ env.MsiVersion }} -ext WixToolset.Util.wixext -ext WixToolset.UI.wixext -arch x64 -o ./artifacts/${{ env.PackageVersion }}/DocRAG.Mcp.msi
 
       - name: Upload MSI artifact
         uses: actions/upload-artifact@v4
