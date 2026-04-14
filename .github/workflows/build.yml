@@ -41,7 +41,7 @@ jobs:
         run: dotnet test DocRAG.slnx --configuration Release --no-build
 
       - name: Publish
-        run: dotnet publish DocRAG.Mcp/DocRAG.Mcp.csproj --configuration Release --runtime win-x64 --self-contained false --output ./publish --no-build
+        run: dotnet publish DocRAG.Mcp/DocRAG.Mcp.csproj --configuration Release --runtime win-x64 --self-contained true --output ./publish
 
       - name: Install WiX
         run: dotnet tool install --global wix --version 5.0.2
