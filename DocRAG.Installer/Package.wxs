@@ -109,8 +109,25 @@
                       Return="ignore"
                       Impersonate="no" />
 
+        <!-- Prewarm OS file cache + validate the binary by running it once with the prewarm flag. -->
+        <!-- This forces all 215 MB of self-contained runtime into the page cache so SCM's 30s start -->
+        <!-- timeout doesn't kill the service on first cold-disk launch. Return is "check" so a real -->
+        <!-- binary failure (bad config, DI build error) fails the install fast. -->
+        <SetProperty Id="PrewarmService"
+                     Before="PrewarmService"
+                     Sequence="execute"
+                     Value="&quot;[MCPFOLDER]DocRAG.Mcp.exe&quot; --prewarm" />
+
+        <CustomAction Id="PrewarmService"
+                      BinaryRef="Wix4UtilCA_X86"
+                      DllEntry="WixQuietExec"
+                      Execute="deferred"
+                      Return="check"
+                      Impersonate="no" />
+
         <InstallExecuteSequence>
             <Custom Action="PatchAppSettings" After="InstallFiles" Condition="NOT Installed OR REINSTALL" />
+            <Custom Action="PrewarmService" Before="StartServices" Condition="NOT Installed OR REINSTALL" />
         </InstallExecuteSequence>
 
         <!-- UI -->
