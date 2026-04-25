@@ -17,6 +17,13 @@ public static class ParserVersionInfo
     ///     Current parser version emitted by the extractor in this build.
     ///     Legacy chunks default to 1; bump this when the extractor's
     ///     observable behavior changes.
+    ///
+    ///     v1: regex-based ExtractQualifiedName — only matched
+    ///         "class|interface|struct|enum X" patterns; trailing dots
+    ///         in [\w\.]+ leaked candidates like "AxisFault.".
+    ///     v2: identifier-aware SymbolExtractor — IdentifierTokenizer +
+    ///         keep/reject rules driven by LibraryProfile + corpus
+    ///         context, emitting Symbols[] with SymbolKind.
     /// </summary>
-    public const int Current = 1;
+    public const int Current = 2;
 }

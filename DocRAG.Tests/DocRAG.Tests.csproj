@@ -35,4 +35,10 @@
     <Using Include="NSubstitute" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Fixtures\**\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

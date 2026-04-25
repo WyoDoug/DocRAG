@@ -1,0 +1,15 @@
+{
+  "_comment": "Representative chunks paraphrased from aerotech-aeroscript style docs. Captures the patterns the reviewer cited as producing junk: sentence-leading capitalized English words (When, Each, Returns, Values), trailing-period mentions (AxisFault., HomeType.), single-char and short prose, and real declared types interleaved with prose.",
+  "chunks": [
+    "Use the MoveLinear command to perform a coordinated linear motion. Each axis in the group moves at the same time. When all axes finish, the next program statement runs.",
+    "AxisFault is the enumeration that lists fault conditions on an axis. Refer to the AxisFault. enumeration for the complete list of values. Set AxisFault.Disabled to acknowledge a latched fault.",
+    "enum HomeType { ToLimit, ToMarker, ToMarkerOnly, ToLimitAndMarker } The HomeType parameter selects which homing routine the controller runs. Returns the enumeration value used during homing.",
+    "Set the RampMode parameter to control acceleration shape. Valid values are RampMode.Linear, RampMode.SCurve, and RampMode.SineSquared. Each ramp shape produces a distinct motion profile.",
+    "class Controller { public Status GetAxisStatus(int axisNumber); public void Connect(string ipAddress); }  AxisStatus represents the runtime state of a single axis.",
+    "function MoveLinear(axis, distance, velocity) returns Status. Represents the lowest-level motion call. The function blocks until the move completes or an AxisFault is raised.",
+    "enum ServoLoopGain { Position, Velocity, Acceleration }  ServoLoopGain identifies which control loop a parameter affects. When tuning, adjust ServoLoopGain.Velocity first.",
+    "TaskState describes the runtime state of a task: Inactive, Running, Paused, or Stopped. Use the TaskState. enumeration to compare task state in a guard expression.",
+    "Each AnalogOutputUpdateEvent fires when the controller writes a value to an analog output channel. Use the event to log values or trigger conditional logic.",
+    "For more information, see the section on Coordinated Motion. The system supports up to 32 axes per task."
+  ]
+}

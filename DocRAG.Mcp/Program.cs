@@ -182,6 +182,9 @@ builder.Services.AddSingleton<LlmClassifier>();
 builder.Services.AddSingleton<DocRAG.Ingestion.Recon.LibraryProfileService>();
 builder.Services.AddSingleton<DocRAG.Ingestion.Recon.CliReconFallback>();
 
+// Identifier-aware extractor (consumed by CategoryAwareChunker and rescrub_library)
+builder.Services.AddSingleton<DocRAG.Ingestion.Symbols.SymbolExtractor>();
+
 
 
 // Ingestion pipeline (so MCP can scrape on demand)

@@ -136,32 +136,37 @@ public class ChunkRepository : IChunkRepository
         ArgumentException.ThrowIfNullOrEmpty(libraryId);
         ArgumentException.ThrowIfNullOrEmpty(version);
 
-        var filterBuilder = Builders<DocChunk>.Filter;
-        var baseFilter = filterBuilder.And(filterBuilder.Eq(c => c.LibraryId, libraryId),
-                                           filterBuilder.Eq(c => c.Version, version),
-                                           filterBuilder.Ne(c => c.QualifiedName, value: null)
-                                          );
-
-        if (!string.IsNullOrWhiteSpace(filter))
-        {
-            baseFilter = filterBuilder.And(baseFilter,
-                                           filterBuilder.Regex(c => c.QualifiedName,
-                                                               new BsonRegularExpression(filter, "i")
-                                                              )
-                                          );
-        }
-
-        var chunks = await mContext.Chunks
-                                   .Find(baseFilter)
-                                   .Project(c => c.QualifiedName ?? string.Empty)
-                                   .ToListAsync(ct);
-
-        var distinct = chunks
-                       .Where(n => n.Length > 0)
-                       .Distinct()
-                       .OrderBy(n => n)
-                       .ToList();
+        var chunks = await GetChunksAsync(libraryId, version, ct);
+        var names = ProjectTypeNames(chunks);
+        var filtered = ApplyFilter(names, filter);
+        var distinct = filtered.Distinct().OrderBy(n => n, StringComparer.Ordinal).ToList();
         return distinct;
+    }
+
+    private static IEnumerable<string> ProjectTypeNames(IReadOnlyList<DocChunk> chunks)
+    {
+        // For v2+ chunks: return Symbols[] entries with Kind == Type.
+        // For legacy v1 chunks: fall back to QualifiedName so the tool stays useful
+        // until a rescrub bumps them. Each chunk yields zero or more names.
+        var v2Names = chunks
+                      .Where(c => c.ParserVersion >= ParserVersionV2 && c.Symbols.Count > 0)
+                      .SelectMany(c => c.Symbols.Where(s => s.Kind == SymbolKind.Type).Select(s => s.Name));
+
+        var legacyNames = chunks
+                          .Where(c => c.ParserVersion < ParserVersionV2)
+                          .Select(c => c.QualifiedName ?? string.Empty)
+                          .Where(n => !string.IsNullOrEmpty(n));
+
+        var result = v2Names.Concat(legacyNames).Where(n => !string.IsNullOrEmpty(n));
+        return result;
+    }
+
+    private static IEnumerable<string> ApplyFilter(IEnumerable<string> names, string? filter)
+    {
+        var result = string.IsNullOrWhiteSpace(filter)
+                         ? names
+                         : names.Where(n => n.Contains(filter, StringComparison.OrdinalIgnoreCase));
+        return result;
     }
 
     /// <inheritdoc />
@@ -220,4 +225,6 @@ public class ChunkRepository : IChunkRepository
 
         await mContext.Chunks.BulkWriteAsync(bulkOps, cancellationToken: ct);
     }
+
+    private const int ParserVersionV2 = 2;
 }

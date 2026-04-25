@@ -1,0 +1,17 @@
+{
+  "_comment": "Hand-picked symbols known to exist in the aerotech-aeroscript docs. Used by the calibration test to verify that even with an empty LibraryProfile.LikelySymbols list, the corpus-context keep rules (declared form, code fence, dotted member, internal structure) recover the real symbols. If too many of these die during extraction, the prose-mention threshold or rule 5 needs tuning.",
+  "symbols": [
+    "MoveLinear",
+    "AxisFault",
+    "AxisFault.Disabled",
+    "HomeType",
+    "RampMode",
+    "RampMode.Linear",
+    "RampMode.SCurve",
+    "Controller",
+    "AxisStatus",
+    "ServoLoopGain",
+    "TaskState",
+    "AnalogOutputUpdateEvent"
+  ]
+}
