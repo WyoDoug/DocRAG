@@ -178,6 +178,10 @@ builder.Services.AddSingleton<IReRanker>(sp => sp.GetRequiredService<ToggleableR
 
 builder.Services.AddSingleton<LlmClassifier>();
 
+// Recon flow (LibraryProfile validation/persistence + CLI Ollama fallback)
+builder.Services.AddSingleton<DocRAG.Ingestion.Recon.LibraryProfileService>();
+builder.Services.AddSingleton<DocRAG.Ingestion.Recon.CliReconFallback>();
+
 
 
 // Ingestion pipeline (so MCP can scrape on demand)
