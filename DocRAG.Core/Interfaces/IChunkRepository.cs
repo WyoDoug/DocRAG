@@ -55,11 +55,25 @@ public interface IChunkRepository
 
     /// <summary>
     ///     Get all distinct qualified names for a library version (for list_classes).
+    ///     Returns Symbols[] entries with Kind == Type for v2+ chunks; falls back to
+    ///     legacy QualifiedName for v1 chunks until they are rescrubbed.
     /// </summary>
     Task<IReadOnlyList<string>> GetQualifiedNamesAsync(string libraryId,
                                                        string version,
                                                        string? filter = null,
                                                        CancellationToken ct = default);
+
+    /// <summary>
+    ///     Get distinct symbol names of a specific kind across the library version.
+    ///     Used by the per-kind list tools (list_enums, list_functions,
+    ///     list_parameters). Reads only v2+ chunks; legacy chunks have no
+    ///     SymbolKind classification and are skipped.
+    /// </summary>
+    Task<IReadOnlyList<string>> GetSymbolsAsync(string libraryId,
+                                                string version,
+                                                SymbolKind kind,
+                                                string? filter = null,
+                                                CancellationToken ct = default);
 
     /// <summary>
     ///     Bulk update the Category field for all chunks belonging to a given page URL.

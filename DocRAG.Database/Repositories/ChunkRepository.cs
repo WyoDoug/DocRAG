@@ -170,6 +170,27 @@ public class ChunkRepository : IChunkRepository
     }
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<string>> GetSymbolsAsync(string libraryId,
+                                                             string version,
+                                                             SymbolKind kind,
+                                                             string? filter = null,
+                                                             CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(libraryId);
+        ArgumentException.ThrowIfNullOrEmpty(version);
+
+        var chunks = await GetChunksAsync(libraryId, version, ct);
+        var names = chunks
+                    .Where(c => c.ParserVersion >= ParserVersionV2 && c.Symbols.Count > 0)
+                    .SelectMany(c => c.Symbols.Where(s => s.Kind == kind).Select(s => s.Name))
+                    .Where(n => !string.IsNullOrEmpty(n));
+
+        var filtered = ApplyFilter(names, filter);
+        var distinct = filtered.Distinct().OrderBy(n => n, StringComparer.Ordinal).ToList();
+        return distinct;
+    }
+
+    /// <inheritdoc />
     public async Task<long> UpdateCategoryByPageUrlAsync(string libraryId,
                                                          string version,
                                                          string pageUrl,

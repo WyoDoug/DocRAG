@@ -111,6 +111,7 @@ services.AddSingleton<LlmClassifier>();
 services.AddSingleton<DocRAG.Ingestion.Symbols.SymbolExtractor>();
 services.AddSingleton<DocRAG.Ingestion.Recon.LibraryProfileService>();
 services.AddSingleton<DocRAG.Ingestion.Recon.CliReconFallback>();
+services.AddSingleton<DocRAG.Ingestion.Recon.RescrubService>();
 services.AddSingleton<CategoryAwareChunker>();
 services.AddSingleton<IEmbeddingProvider, OllamaEmbeddingProvider>();
 services.AddSingleton<IVectorSearchProvider, InMemoryBruteForceVectorSearch>();

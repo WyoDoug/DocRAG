@@ -37,6 +37,22 @@ public class LlmClassifier
     private readonly OllamaSettings mSettings;
 
     /// <summary>
+    ///     Version string used by LibraryManifest.LastClassifierVersion to
+    ///     detect when reclassification is needed during rescrub. Combines
+    ///     the configured classification model with a manually-bumped prompt
+    ///     version. Bump <see cref="PromptVersion" /> whenever the prompt
+    ///     template changes meaningfully.
+    /// </summary>
+    public const string PromptVersion = "v1";
+
+    /// <summary>
+    ///     Returns the current classifier version for this instance, used
+    ///     by RescrubService to populate the manifest and decide whether
+    ///     reclassification is needed on a future rescrub.
+    /// </summary>
+    public string GetCurrentVersion() => $"{mSettings.ClassificationModel}-{PromptVersion}";
+
+    /// <summary>
     ///     Classify a page using the LLM. Returns category and confidence.
     /// </summary>
     public async Task<(DocCategory Category, float Confidence)> ClassifyAsync(PageRecord page,

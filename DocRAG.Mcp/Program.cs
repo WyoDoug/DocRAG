@@ -185,6 +185,9 @@ builder.Services.AddSingleton<DocRAG.Ingestion.Recon.CliReconFallback>();
 // Identifier-aware extractor (consumed by CategoryAwareChunker and rescrub_library)
 builder.Services.AddSingleton<DocRAG.Ingestion.Symbols.SymbolExtractor>();
 
+// Rescrub service (consumed by rescrub_library MCP tool)
+builder.Services.AddSingleton<DocRAG.Ingestion.Recon.RescrubService>();
+
 
 
 // Ingestion pipeline (so MCP can scrape on demand)
