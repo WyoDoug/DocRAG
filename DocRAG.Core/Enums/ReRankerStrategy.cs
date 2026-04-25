@@ -29,5 +29,16 @@ public enum ReRankerStrategy
     ///     0.5/0.2/0.0) and 2–7s latency make it a bad default for
     ///     identifier-heavy workloads.
     /// </summary>
-    Llm
+    Llm,
+
+    /// <summary>
+    ///     Cross-encoder-style reranker hosting Mixedbread mxbai-rerank-
+    ///     large-v2 on Ollama. Each (query, document) pair is scored
+    ///     independently with a "respond with only the number" prompt,
+    ///     yielding continuous floats in [0, 1]. Latency ~50-200ms per
+    ///     pair (so ~0.5-2s for a 10-candidate batch). Recommended
+    ///     non-Off strategy for production once the bench harness
+    ///     confirms it net-helps for your corpus.
+    /// </summary>
+    CrossEncoder
 }
