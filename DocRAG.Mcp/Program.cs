@@ -41,6 +41,8 @@ using DocRAG.Mcp;
 
 using DocRAG.Mcp.Tools;
 
+using Microsoft.Extensions.Hosting.WindowsServices;
+
 using ModelContextProtocol.Protocol;
 
 using Serilog;
@@ -80,46 +82,63 @@ Directory.CreateDirectory(logDirectory);
 
 var levelSwitch = new LoggingLevelSwitch(LogEventLevel.Warning);
 
-Log.Logger = new LoggerConfiguration()
-
-             .MinimumLevel.ControlledBy(levelSwitch)
-
-             .MinimumLevel.Override(MicrosoftAspNetCoreNamespace, LogEventLevel.Warning)
-
-             .WriteTo.Console()
-
-             .WriteTo.File(Path.Combine(logDirectory, LogFileNamePattern),
-
-                           rollingInterval: RollingInterval.Day,
-
-                           retainedFileCountLimit: 7,
-
-                           shared: true
-
-                          )
-
-             .CreateLogger();
-
 const string McpEndpointPattern = "/mcp";
 
-const string ServiceName = "DocRAG MCP";
+const string ServiceName = "DocRAGMcp";
+
+const string EventLogName = "Application";
+
+var loggerConfig = new LoggerConfiguration()
+
+                   .MinimumLevel.ControlledBy(levelSwitch)
+
+                   .MinimumLevel.Override(MicrosoftAspNetCoreNamespace, LogEventLevel.Warning)
+
+                   .WriteTo.Console()
+
+                   .WriteTo.File(Path.Combine(logDirectory, LogFileNamePattern),
+
+                                 rollingInterval: RollingInterval.Day,
+
+                                 retainedFileCountLimit: 7,
+
+                                 shared: true
+
+                                );
+
+if (WindowsServiceHelpers.IsWindowsService())
+
+{
+
+    loggerConfig = loggerConfig.WriteTo.EventLog(source: ServiceName,
+
+                                                 logName: EventLogName,
+
+                                                 manageEventSource: true,
+
+                                                 restrictedToMinimumLevel: LogEventLevel.Warning
+
+                                                );
+
+}
+
+Log.Logger = loggerConfig.CreateLogger();
 
 
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Host.UseSerilog();
+builder.Host.UseWindowsService(options =>
+
+                               {
+
+                                   options.ServiceName = ServiceName;
+
+                               }
+
+                              );
 builder.Services.AddSingleton(levelSwitch);
-
-builder.Services.AddWindowsService(options =>
-
-                                   {
-
-                                       options.ServiceName = ServiceName;
-
-                                   }
-
-                                  );
 
 builder.Services.AddSingleton(new DiagnosticTools.LogConfig(logDirectory));
 
@@ -275,9 +294,55 @@ builder.Services
 
 
 
-var app = builder.Build();
+const string PrewarmFlag = "--prewarm";
 
 var startupSw = Stopwatch.StartNew();
+
+var app = builder.Build();
+
+bool prewarmMode = args.Any(a => string.Equals(a, PrewarmFlag, StringComparison.OrdinalIgnoreCase));
+
+int exitCode = 0;
+
+if (prewarmMode)
+
+{
+
+    app.Logger.LogWarning("[Prewarm] Host built in {Sec:F1}s, starting full host to warm cache", startupSw.Elapsed.TotalSeconds);
+
+    using var prewarmCts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+
+    try
+
+    {
+
+        await app.StartAsync(prewarmCts.Token);
+
+        await app.StopAsync(prewarmCts.Token);
+
+        app.Logger.LogWarning("[Prewarm] Host start+stop complete in {Sec:F1}s, reading install dir to warm OS file cache", startupSw.Elapsed.TotalSeconds);
+
+        var (fileCount, totalBytes) = PrewarmHelpers.ReadAllFiles(AppContext.BaseDirectory);
+
+        app.Logger.LogWarning("[Prewarm] Read {Count} files ({MB:F0} MB) in {Sec:F1}s total", fileCount, totalBytes / (double) PrewarmHelpers.BytesPerMegabyte, startupSw.Elapsed.TotalSeconds);
+
+    }
+
+    catch(Exception ex)
+
+    {
+
+        app.Logger.LogError(ex, "[Prewarm] Failed during host start/stop");
+
+        exitCode = 1;
+
+    }
+
+}
+
+else
+
+{
 
 app.Logger.LogInformation("[Startup] T+{Sec:F1}s â€” HTTP server starting", startupSw.Elapsed.TotalSeconds);
 
@@ -364,4 +429,10 @@ app.MapMcp(McpEndpointPattern);
 
 
 app.Run();
+
+}
+
+Log.CloseAndFlush();
+
+return exitCode;
 

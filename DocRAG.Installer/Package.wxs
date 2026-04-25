@@ -41,6 +41,11 @@
                             ErrorControl="normal"
                             Account="LocalSystem" />
 
+            <!-- Start="install" stays so InstallServices actually registers the service in SCM. -->
+            <!-- Our StartAndMonitorService CA runs BEFORE MSI's standard StartServices, drives the -->
+            <!-- service to Running with retries (since cold .NET startup can trip SCM's 30s -->
+            <!-- pre-dispatcher gate), and gates install success on a /health 200. By the time MSI's -->
+            <!-- StartServices fires, the service is already Running, so it's a no-op pass. -->
             <ServiceControl Id="StartDocRAGMcp"
                             Name="DocRAGMcp"
                             Start="install"
@@ -109,8 +114,45 @@
                       Return="ignore"
                       Impersonate="no" />
 
+        <!-- Prewarm OS file cache + validate the binary by running it once with the prewarm flag. -->
+        <!-- This forces all 215 MB of self-contained runtime into the page cache so SCM's 30s start -->
+        <!-- timeout doesn't kill the service on first cold-disk launch. Return is "check" so a real -->
+        <!-- binary failure (bad config, DI build error) fails the install fast. -->
+        <SetProperty Id="PrewarmService"
+                     Before="PrewarmService"
+                     Sequence="execute"
+                     Value="&quot;[MCPFOLDER]DocRAG.Mcp.exe&quot; --prewarm" />
+
+        <CustomAction Id="PrewarmService"
+                      BinaryRef="Wix4UtilCA_X86"
+                      DllEntry="WixQuietExec"
+                      Execute="deferred"
+                      Return="check"
+                      Impersonate="no" />
+
+        <!-- Replacement for MSI's standard StartServices action: drives the start ourselves -->
+        <!-- with a retry+health-poll loop, since SCM's pre-dispatcher 30s gate (ServicesPipeTimeout) -->
+        <!-- can be tripped by cold .NET startup of the 215 MB self-contained service. We can't extend -->
+        <!-- that gate from inside .NET (it's per-process and fires before our managed code can pump -->
+        <!-- SetServiceStatus), so we accept that the FIRST start may fail and retry. The CA returns -->
+        <!-- non-zero on persistent failure so MSI rolls back cleanly rather than committing a -->
+        <!-- half-installed product where the service never actually runs. -->
+        <SetProperty Id="StartAndMonitorService"
+                     Before="StartAndMonitorService"
+                     Sequence="execute"
+                     Value="&quot;powershell.exe&quot; -NoProfile -ExecutionPolicy Bypass -File &quot;[MCPFOLDER]start-and-monitor.ps1&quot; -ServiceName DocRAGMcp -HealthUrl http://localhost:6100/health -BinaryPath &quot;[MCPFOLDER]DocRAG.Mcp.exe&quot; -TotalTimeoutSec 300" />
+
+        <CustomAction Id="StartAndMonitorService"
+                      BinaryRef="Wix4UtilCA_X86"
+                      DllEntry="WixQuietExec"
+                      Execute="deferred"
+                      Return="check"
+                      Impersonate="no" />
+
         <InstallExecuteSequence>
             <Custom Action="PatchAppSettings" After="InstallFiles" Condition="NOT Installed OR REINSTALL" />
+            <Custom Action="PrewarmService" Before="StartAndMonitorService" Condition="NOT Installed OR REINSTALL" />
+            <Custom Action="StartAndMonitorService" Before="StartServices" Condition="NOT Installed OR REINSTALL" />
         </InstallExecuteSequence>
 
         <!-- UI -->
