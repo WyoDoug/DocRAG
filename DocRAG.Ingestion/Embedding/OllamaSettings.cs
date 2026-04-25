@@ -30,10 +30,22 @@ public class OllamaSettings
     public string ClassificationModel { get; set; } = DefaultClassificationModel;
 
     /// <summary>
-    ///     Model name for re-ranking search results.
-    ///     Smaller instruction-following models work best here.
+    ///     Model name for the legacy LLM categorical reranker
+    ///     (ReRankerStrategy = Llm). Smaller instruction-following models
+    ///     work for this prompt-based categorical scoring approach.
     /// </summary>
     public string ReRankingModel { get; set; } = DefaultReRankingModel;
+
+    /// <summary>
+    ///     Model name for the cross-encoder reranker
+    ///     (ReRankerStrategy = CrossEncoder). Defaults to the Mixedbread
+    ///     mxbai-rerank-large-v2 community port. Mixedbread AI is registered
+    ///     in Berlin; non-Chinese supply chain. The model is a true
+    ///     cross-encoder by training but is hosted on Ollama as a generate
+    ///     model with a "respond with only the score" prompt — produces
+    ///     continuous floats instead of qwen3:1.7b's 5-bucket plateau.
+    /// </summary>
+    public string CrossEncoderModel { get; set; } = DefaultCrossEncoderModel;
 
     /// <summary>
     ///     Model name used by the CLI's recon fallback when no calling LLM is
@@ -74,6 +86,7 @@ public class OllamaSettings
     public const string DefaultEmbeddingModel = "nomic-embed-text";
     public const string DefaultClassificationModel = "qwen3:1.7b";
     public const string DefaultReRankingModel = "qwen3:1.7b";
+    public const string DefaultCrossEncoderModel = "rjmalagon/mxbai-rerank-large-v2:1.5b-fp16";
     public const string DefaultReconModel = "qwen3:14b";
     public const int DefaultEmbeddingDimensions = 768;
     public const int DefaultModelPullTimeoutSeconds = 600;
