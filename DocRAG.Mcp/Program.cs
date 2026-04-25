@@ -158,6 +158,9 @@ builder.Services.AddDocRagDatabase(builder.Configuration);
 
 builder.Services.Configure<OllamaSettings>(builder.Configuration.GetSection(OllamaSettings.SectionName));
 
+// Ranking configuration (BM25 weight, ReRank blend weight, ProseMentionThreshold, ReRankerStrategy)
+builder.Services.Configure<DocRAG.Core.Models.RankingSettings>(builder.Configuration.GetSection(DocRAG.Core.Models.RankingSettings.SectionName));
+
 
 
 // Ollama services

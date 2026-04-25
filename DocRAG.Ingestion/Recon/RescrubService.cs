@@ -9,6 +9,7 @@ using DocRAG.Core.Interfaces;
 using DocRAG.Core.Models;
 using DocRAG.Database.Repositories;
 using DocRAG.Ingestion.Classification;
+using DocRAG.Ingestion.Embedding;
 using DocRAG.Ingestion.Symbols;
 using Microsoft.Extensions.Logging;
 
@@ -99,7 +100,7 @@ public class RescrubService
         var indexesBuilt = false;
         if (options.RebuildIndexes && !options.DryRun)
         {
-            await PersistLibraryIndexAsync(indexRepo, libraryId, version, profile, corpus, ct);
+            await PersistLibraryIndexAsync(indexRepo, libraryId, version, profile, corpus, scoped, ct);
             indexesBuilt = true;
         }
 
@@ -343,6 +344,7 @@ public class RescrubService
                                                 string version,
                                                 LibraryProfile profile,
                                                 CorpusContext corpus,
+                                                IReadOnlyList<DocChunk> chunks,
                                                 CancellationToken ct)
     {
         var manifest = new LibraryManifest
@@ -353,12 +355,14 @@ public class RescrubService
                                LastBuiltUtc = DateTime.UtcNow
                            };
 
+        var bm25 = Bm25IndexBuilder.Build(chunks);
+
         var index = new LibraryIndex
                         {
                             Id = LibraryIndexRepository.MakeId(libraryId, version),
                             LibraryId = libraryId,
                             Version = version,
-                            Bm25 = new Bm25Index(),
+                            Bm25 = bm25,
                             CodeFenceSymbols = corpus.CodeFenceSymbols.ToList(),
                             Manifest = manifest
                         };

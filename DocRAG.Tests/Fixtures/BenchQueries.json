@@ -1,0 +1,101 @@
+{
+  "_comment": "Hand-curated bench queries for the retrieval bench harness. Mix of identifier-shaped (where hybrid scoring + gating should win) and prose-shaped (where reranking might help). Relevant chunk IDs are author-curated against a synthetic AeroScript-style fixture corpus; ship with at least 15 to give the bench enough signal, with room to grow toward 30+ over time. The bench's nDCG@5 number reflects the implementer's relevance taste — that subjectivity is acknowledged here so future re-curation can adjust it intentionally.",
+  "queries": [
+    {
+      "name": "MoveLinear identifier",
+      "query": "MoveLinear",
+      "shape": "identifier",
+      "relevantChunkIds": ["chunk-movelinear-ref", "chunk-movelinear-sample"]
+    },
+    {
+      "name": "AxisFault.Disabled dotted member",
+      "query": "AxisFault.Disabled",
+      "shape": "identifier",
+      "relevantChunkIds": ["chunk-axisfault-enum"]
+    },
+    {
+      "name": "HomeType parameter",
+      "query": "HomeType",
+      "shape": "identifier",
+      "relevantChunkIds": ["chunk-hometype-param"]
+    },
+    {
+      "name": "Controller.Connect callable",
+      "query": "Controller.Connect()",
+      "shape": "identifier",
+      "relevantChunkIds": ["chunk-controller-ref", "chunk-connect-sample"]
+    },
+    {
+      "name": "RampMode.SCurve",
+      "query": "RampMode.SCurve",
+      "shape": "identifier",
+      "relevantChunkIds": ["chunk-rampmode-enum"]
+    },
+    {
+      "name": "AxisStatus snake_case lookup",
+      "query": "axis_status",
+      "shape": "identifier",
+      "relevantChunkIds": ["chunk-axisstatus-ref"]
+    },
+    {
+      "name": "ServoLoopGain identifier",
+      "query": "ServoLoopGain",
+      "shape": "identifier",
+      "relevantChunkIds": ["chunk-servoloopgain-enum"]
+    },
+    {
+      "name": "TaskState lookup",
+      "query": "TaskState",
+      "shape": "identifier",
+      "relevantChunkIds": ["chunk-taskstate-prose"]
+    },
+    {
+      "name": "AnalogOutputUpdateEvent lookup",
+      "query": "AnalogOutputUpdateEvent",
+      "shape": "identifier",
+      "relevantChunkIds": ["chunk-analogout-event"]
+    },
+    {
+      "name": "configure homing prose",
+      "query": "how do I configure homing on each axis",
+      "shape": "prose",
+      "relevantChunkIds": ["chunk-hometype-param", "chunk-homing-howto"]
+    },
+    {
+      "name": "explain coordinated motion",
+      "query": "explain coordinated motion across multiple axes",
+      "shape": "prose",
+      "relevantChunkIds": ["chunk-coordmotion-overview"]
+    },
+    {
+      "name": "set up encoder feedback",
+      "query": "how to set up encoder feedback for a stage",
+      "shape": "prose",
+      "relevantChunkIds": ["chunk-encoder-howto"]
+    },
+    {
+      "name": "fault recovery prose",
+      "query": "what to do when an axis faults during a move",
+      "shape": "prose",
+      "relevantChunkIds": ["chunk-axisfault-enum", "chunk-faultrecovery-howto"]
+    },
+    {
+      "name": "task lifecycle",
+      "query": "how does the task lifecycle work",
+      "shape": "prose",
+      "relevantChunkIds": ["chunk-taskstate-prose", "chunk-tasklife-overview"]
+    },
+    {
+      "name": "ramp shape selection",
+      "query": "which ramp shape should I use for smooth motion",
+      "shape": "prose",
+      "relevantChunkIds": ["chunk-rampmode-enum", "chunk-rampchoice-howto"]
+    },
+    {
+      "name": "library getting started",
+      "query": "getting started with this library",
+      "shape": "prose",
+      "relevantChunkIds": ["chunk-overview-getting-started"]
+    }
+  ]
+}

@@ -1,12 +1,14 @@
 // // SettingsTools.cs
-// // Copyright (c) 2012-Present Jackalope Technologies, Inc. and Doug Gerard.
+// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
 // // Use subject to the MIT License.
 
 #region Usings
 
 using System.ComponentModel;
 using System.Text.Json;
+using DocRAG.Core.Models;
 using DocRAG.Ingestion.Embedding;
+using Microsoft.Extensions.Options;
 using ModelContextProtocol.Server;
 using Serilog.Core;
 using Serilog.Events;
@@ -25,19 +27,29 @@ public static class SettingsTools
 {
     [McpServerTool(Name = "toggle_reranking")]
     [Description("Enable or disable LLM-based re-ranking of search results. " +
-                 "When enabled, search results are re-scored by the local Ollama model " +
-                 "for better relevance (slower). When disabled, results use vector " +
-                 "similarity scores only (faster). Returns the current state.")]
+                 "When enabled, search results are re-scored by the configured strategy " +
+                 "(see RankingSettings.ReRankerStrategy — default 'Off' is the recommended " +
+                 "starting point until a bench run confirms a non-Off strategy net-helps). " +
+                 "Identifier-shaped queries (CamelCase, dotted, callable) skip re-ranking " +
+                 "even when enabled — hybrid scoring already wins on them. " +
+                 "Returns the current state plus the strategy that would be used."
+                )]
     public static string ToggleReRanking(ToggleableReRanker reRanker,
+                                         IOptions<RankingSettings> rankingOptions,
                                          [Description("true to enable, false to disable, omit to just check current state")]
                                          bool? enabled = null)
     {
         ArgumentNullException.ThrowIfNull(reRanker);
+        ArgumentNullException.ThrowIfNull(rankingOptions);
 
         if (enabled.HasValue)
             reRanker.Enabled = enabled.Value;
 
-        var response = new { ReRankingEnabled = reRanker.Enabled };
+        var response = new
+                           {
+                               ReRankingEnabled = reRanker.Enabled,
+                               Strategy = rankingOptions.Value.ReRankerStrategy.ToString()
+                           };
         var result = JsonSerializer.Serialize(response, smJsonOptions);
         return result;
     }
