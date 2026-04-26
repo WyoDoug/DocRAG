@@ -1,0 +1,20 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug DocRAG.Mcp (x64)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "DocRAG: Pre-Debug",
+      "postDebugTask": "DocRAG: Start Service",
+      "program": "${workspaceFolder}/DocRAG.Mcp/bin/x64/Debug/net10.0/DocRAG.Mcp.dll",
+      "cwd": "${workspaceFolder}/DocRAG.Mcp",
+      "stopAtEntry": false,
+      "console": "integratedTerminal",
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DOCRAG_MONGODB_PROFILE": "local"
+      }
+    }
+  ]
+}

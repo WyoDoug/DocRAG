@@ -6,8 +6,9 @@
 # DocRAG project-specific
 Scratch/
 .claude/
-.vscode/
 playwright-tmp/
+
+# .vscode is partially tracked — see allow-list further down for which files we keep
 
 # dotenv files
 .env
