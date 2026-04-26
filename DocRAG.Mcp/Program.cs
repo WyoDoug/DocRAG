@@ -13,6 +13,8 @@ using System.Diagnostics;
 
 using System.Net;
 
+using System.Reflection;
+
 using DocRAG.Core.Interfaces;
 
 using DocRAG.Database;
@@ -266,6 +268,16 @@ builder.Services.AddSingleton<DependencyIndexer>();
 
 
 
+// MCP server version — sourced from AssemblyInformationalVersion which the
+// build workflow stamps from the git tag (e.g. "0.1.0-alpha.3"). Local dev
+// builds get the Directory.Build.props default ("0.0.0-dev") so clients can
+// tell they're not running a tagged release.
+const string DefaultDevVersion = "0.0.0-dev";
+var serverVersion = Assembly.GetExecutingAssembly()
+                            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+                            ?.InformationalVersion
+                         ?? DefaultDevVersion;
+
 // MCP server with Streamable HTTP transport
 
 builder.Services
@@ -280,7 +292,7 @@ builder.Services
 
                                                       Name = "DocRAG â€” Documentation RAG MCP Server",
 
-                                                      Version = "0.3.0"
+                                                      Version = serverVersion
 
                                                   };
 
