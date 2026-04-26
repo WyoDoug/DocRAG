@@ -6,9 +6,7 @@
 
 using System.ComponentModel;
 using System.Text.Json;
-using DocRAG.Core.Models;
 using DocRAG.Ingestion.Embedding;
-using Microsoft.Extensions.Options;
 using ModelContextProtocol.Server;
 using Serilog.Core;
 using Serilog.Events;
@@ -28,19 +26,16 @@ public static class SettingsTools
     [McpServerTool(Name = "toggle_reranking")]
     [Description("Enable or disable LLM-based re-ranking of search results. " +
                  "When enabled, search results are re-scored by the configured strategy " +
-                 "(see RankingSettings.ReRankerStrategy — default 'Off' is the recommended " +
-                 "starting point until a bench run confirms a non-Off strategy net-helps). " +
+                 "(Off / Llm / CrossEncoder — see RankingSettings.ReRankerStrategy). " +
                  "Identifier-shaped queries (CamelCase, dotted, callable) skip re-ranking " +
                  "even when enabled — hybrid scoring already wins on them. " +
-                 "Returns the current state plus the strategy that would be used."
+                 "Returns the current state plus the strategy that will actually dispatch."
                 )]
     public static string ToggleReRanking(ToggleableReRanker reRanker,
-                                         IOptions<RankingSettings> rankingOptions,
                                          [Description("true to enable, false to disable, omit to just check current state")]
                                          bool? enabled = null)
     {
         ArgumentNullException.ThrowIfNull(reRanker);
-        ArgumentNullException.ThrowIfNull(rankingOptions);
 
         if (enabled.HasValue)
             reRanker.Enabled = enabled.Value;
@@ -48,7 +43,7 @@ public static class SettingsTools
         var response = new
                            {
                                ReRankingEnabled = reRanker.Enabled,
-                               Strategy = rankingOptions.Value.ReRankerStrategy.ToString()
+                               ActiveStrategy = reRanker.ActiveStrategy.ToString()
                            };
         var result = JsonSerializer.Serialize(response, smJsonOptions);
         return result;
