@@ -150,6 +150,24 @@
       }
     },
     {
+      "label": "DocRAG: Grant Service Control (one-time, requires UAC)",
+      "type": "process",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/scripts/grant-service-control.ps1"
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "DocRAG: Tail Logs",
       "type": "process",
       "command": "powershell.exe",
