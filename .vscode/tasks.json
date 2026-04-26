@@ -168,6 +168,25 @@
       "problemMatcher": []
     },
     {
+      "label": "DocRAG: Verify Service Control Grant",
+      "type": "process",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/scripts/grant-service-control.ps1",
+        "-Verify"
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "DocRAG: Tail Logs",
       "type": "process",
       "command": "powershell.exe",

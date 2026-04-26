@@ -18,6 +18,15 @@ $ServiceName = 'DocRAGMcp'
 $HealthUrl = 'http://localhost:6100/health'
 $LogDir = Join-Path $env:LOCALAPPDATA 'DocRAG\logs'
 
+function Write-ElevationHint {
+    param([string]$Operation)
+    Write-Host ""
+    Write-Host "dev: $Operation failed: access denied."
+    Write-Host "dev: This needs admin OR a one-time grant. To avoid UAC every time, run the"
+    Write-Host "dev: 'DocRAG: Grant Service Control (one-time, requires UAC)' task once. After that,"
+    Write-Host "dev: stop/start work non-elevated."
+}
+
 function Stop-DocRagService {
     $svc = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
     if ($null -eq $svc) {
@@ -26,8 +35,18 @@ function Stop-DocRagService {
     }
     if ($svc.Status -eq 'Running') {
         Write-Host "dev: Stopping $ServiceName..."
-        Stop-Service -Name $ServiceName -ErrorAction Stop
-        Write-Host "dev: Stopped."
+        try {
+            Stop-Service -Name $ServiceName -ErrorAction Stop
+            Write-Host "dev: Stopped."
+        }
+        catch [System.ServiceProcess.TimeoutException] {
+            Write-Host "dev: Stop timed out; service may still be shutting down."
+            exit 1
+        }
+        catch {
+            Write-ElevationHint -Operation 'Stop'
+            exit 1
+        }
     }
     else {
         Write-Host "dev: Service '$ServiceName' is already $($svc.Status)."
@@ -42,8 +61,14 @@ function Start-DocRagService {
     }
     if ($svc.Status -ne 'Running') {
         Write-Host "dev: Starting $ServiceName..."
-        Start-Service -Name $ServiceName -ErrorAction Stop
-        Write-Host "dev: Started."
+        try {
+            Start-Service -Name $ServiceName -ErrorAction Stop
+            Write-Host "dev: Started."
+        }
+        catch {
+            Write-ElevationHint -Operation 'Start'
+            exit 1
+        }
     }
     else {
         Write-Host "dev: Service '$ServiceName' is already running."
