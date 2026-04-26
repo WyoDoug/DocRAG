@@ -45,9 +45,9 @@ function Show-VerifyState {
     Write-Host "verify: SDDL:      $sddl"
 
     if ($sddl -like "*$Sid*") {
-        $matches = [regex]::Matches($sddl, "\(A;[^;]*;([A-Z]+);[^;]*;[^;]*;$([regex]::Escape($Sid))\)")
-        if ($matches.Count -gt 0) {
-            $rights = $matches | ForEach-Object { $_.Groups[1].Value }
+        $aceMatches = [regex]::Matches($sddl, "\(A;[^;]*;([A-Z]+);[^;]*;[^;]*;$([regex]::Escape($Sid))\)")
+        if ($aceMatches.Count -gt 0) {
+            $rights = $aceMatches | ForEach-Object { $_.Groups[1].Value }
             Write-Host "verify: GRANT PRESENT for this SID. Rights: $($rights -join ', ')"
             return $true
         }
@@ -70,7 +70,16 @@ $isAdmin = $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::A
 if (-not $isAdmin) {
     Write-Host "grant: Not elevated. Re-launching with UAC and capturing output..."
 
-    $logFile = Join-Path $env:TEMP "docrag-grant-service-$(Get-Date -Format 'yyyyMMddHHmmss').log"
+    # Use the user's profile path (not $env:TEMP) for the transcript. When VS Code
+    # is launched elevated, $env:TEMP points to C:\WINDOWS\TEMP which is unreadable
+    # by a filtered-admin parent process. The user's AppData\Local\DocRAG path is
+    # always user-owned and readable regardless of token state, and lives next to
+    # DocRAG's existing application logs.
+    $logDir = Join-Path $env:USERPROFILE 'AppData\Local\DocRAG'
+    if (-not (Test-Path $logDir)) {
+        New-Item -ItemType Directory -Path $logDir -Force | Out-Null
+    }
+    $logFile = Join-Path $logDir "grant-service-$(Get-Date -Format 'yyyyMMddHHmmss').log"
     if (Test-Path $logFile) { Remove-Item $logFile -Force }
 
     # The elevated child writes its full transcript to $logFile so the
@@ -146,14 +155,20 @@ if ($existingSddl -match $([regex]::Escape($ourAce))) {
     exit 0
 }
 
-if ($existingSddl -match '^(D:[^S]*)(S:.*)?$') {
-    $daclPart = $matches[1]
-    $saclPart = $matches[2]
-    $newSddl = "$daclPart$ourAce$saclPart"
+# Split DACL from SACL by finding the ")S:" boundary. A naive regex like
+# ^D:[^S]* fails because DACL access flags contain 'S' (e.g. SW =
+# SERVICE_PAUSE_CONTINUE bit) so the DACL section can't be matched as
+# "non-S characters". The DACL is a sequence of (...) ACEs ending with
+# ')'; the SACL (if present) starts with 'S:' immediately after.
+$saclMarkerIndex = $existingSddl.IndexOf(')S:')
+if ($saclMarkerIndex -lt 0) {
+    # No SACL — append our ACE at the end of the DACL.
+    $newSddl = "$existingSddl$ourAce"
 }
 else {
-    Write-Host "grant: Unexpected SDDL format; refusing to modify."
-    exit 1
+    $daclPart = $existingSddl.Substring(0, $saclMarkerIndex + 1)
+    $saclPart = $existingSddl.Substring($saclMarkerIndex + 1)
+    $newSddl = "$daclPart$ourAce$saclPart"
 }
 
 Write-Host "grant: New SDDL:     $newSddl"
