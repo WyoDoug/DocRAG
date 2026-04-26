@@ -40,13 +40,13 @@ jobs:
         run: dotnet restore DocRAG.slnx
 
       - name: Build
-        run: dotnet build DocRAG.slnx --configuration Release --no-restore -p:TreatWarningsAsErrors=true
+        run: dotnet build DocRAG.slnx --configuration Release --no-restore -p:TreatWarningsAsErrors=true -p:Version=${{ env.PackageVersion }}
 
       - name: Test
         run: dotnet test DocRAG.slnx --configuration Release --no-build
 
       - name: Publish
-        run: dotnet publish DocRAG.Mcp/DocRAG.Mcp.csproj --configuration Release --runtime win-x64 --self-contained true --output ./artifacts/${{ env.PackageVersion }}/publish
+        run: dotnet publish DocRAG.Mcp/DocRAG.Mcp.csproj --configuration Release --runtime win-x64 --self-contained true --output ./artifacts/${{ env.PackageVersion }}/publish -p:Version=${{ env.PackageVersion }}
 
       - name: Install WiX
         run: dotnet tool install --global wix --version 5.0.2
