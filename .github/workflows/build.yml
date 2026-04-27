@@ -14,6 +14,12 @@ jobs:
   build:
     runs-on: windows-latest
 
+    # Opt JS-based actions into Node 24 ahead of the June 2026 default switch so
+    # we don't carry deprecation warnings for actions that still ship a Node 20
+    # binary internally (e.g. actions/upload-artifact@v4).
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
     steps:
       - uses: actions/checkout@v5
 
