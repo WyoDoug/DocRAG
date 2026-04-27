@@ -38,27 +38,16 @@ jobs:
               $version = "0.0.0"
           }
 
-          # MSI's MajorUpgrade comparison only honors the first three ProductVersion
-          # fields, so a prerelease suffix on the semver tag would otherwise collapse
-          # every alpha to the same MSI version and trigger maintenance mode instead
-          # of an upgrade. Map the prerelease stage onto the MSI minor field and use
-          # the prerelease counter as the build field so each tag is strictly greater
-          # than the previous one within a stage:
-          #   *-alpha.N -> 0.1.N
-          #   *-beta.N  -> 0.2.N
-          #   final     -> semver as-is (must be >= 0.3.0 to upgrade past beta)
-          $isPrerelease = "false"
-          if ($version -match '^\d+\.\d+\.\d+-alpha\.(\d+)$') {
-              $msiVersion = "0.1.$($Matches[1])"
+          # The git tag IS the MSI ProductVersion - no translation. Versioning policy:
+          #   0.1.N -> alpha series (prerelease)
+          #   0.2.N -> beta series  (prerelease)
+          #   any 0.x.y -> prerelease
+          #   1.0.0 and above -> stable
+          $msiVersion = $version
+          if ($version -match '^0\.') {
               $isPrerelease = "true"
-          } elseif ($version -match '^\d+\.\d+\.\d+-beta\.(\d+)$') {
-              $msiVersion = "0.2.$($Matches[1])"
-              $isPrerelease = "true"
-          } elseif ($version -match '^\d+\.\d+\.\d+$') {
-              $msiVersion = $version
           } else {
-              $msiVersion = ($version -split '-')[0]
-              if ($version -match '-') { $isPrerelease = "true" }
+              $isPrerelease = "false"
           }
 
           echo "PackageVersion=$version" >> $env:GITHUB_ENV
