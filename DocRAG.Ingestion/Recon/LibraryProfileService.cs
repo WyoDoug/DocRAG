@@ -1,6 +1,6 @@
-// // LibraryProfileService.cs
-// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// LibraryProfileService.cs
+// Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 #region Usings
 
@@ -50,21 +50,52 @@ public class LibraryProfileService
         Validate(profile);
 
         var normalized = Normalize(profile);
-        await repository.UpsertAsync(normalized, ct);
-        mLogger.LogInformation("Saved library profile for {LibraryId}/{Version} (source={Source}, confidence={Confidence:F2})",
-                               normalized.LibraryId,
-                               normalized.Version,
-                               normalized.Source,
-                               normalized.Confidence
+        var withCarryForward = await ApplyStoplistCarryForwardAsync(repository, normalized, ct);
+
+        await repository.UpsertAsync(withCarryForward, ct);
+        mLogger.LogInformation("Saved library profile for {LibraryId}/{Version} (source={Source}, confidence={Confidence:F2}, stoplist={StoplistCount})",
+                               withCarryForward.LibraryId,
+                               withCarryForward.Version,
+                               withCarryForward.Source,
+                               withCarryForward.Confidence,
+                               withCarryForward.Stoplist.Count
                               );
-        return normalized;
+        return withCarryForward;
+    }
+
+    /// <summary>
+    ///     If the incoming profile has an empty Stoplist and a prior profile
+    ///     for the same LibraryId (any other version) has a non-empty
+    ///     Stoplist, copy the most-recent prior Stoplist forward. Lets the
+    ///     LLM's curation work survive a library version bump without
+    ///     re-doing it. Non-empty incoming Stoplists are never overridden.
+    /// </summary>
+    private static async Task<LibraryProfile> ApplyStoplistCarryForwardAsync(ILibraryProfileRepository repository,
+                                                                              LibraryProfile profile,
+                                                                              CancellationToken ct)
+    {
+        LibraryProfile result = profile;
+        if (profile.Stoplist.Count == 0)
+        {
+            var all = await repository.ListAllAsync(ct);
+            var prior = all.Where(p => string.Equals(p.LibraryId, profile.LibraryId, StringComparison.Ordinal)
+                                    && !string.Equals(p.Version, profile.Version, StringComparison.Ordinal)
+                                    && p.Stoplist.Count > 0)
+                           .OrderByDescending(p => p.CreatedUtc)
+                           .FirstOrDefault();
+            if (prior != null)
+                result = profile with { Stoplist = prior.Stoplist };
+        }
+        return result;
     }
 
     /// <summary>
     ///     Compute a stable hash of the profile's content for manifest
     ///     tracking. Hash deliberately excludes CreatedUtc and Source so
     ///     two profiles with identical structural content but different
-    ///     metadata produce the same hash.
+    ///     metadata produce the same hash. Also excludes Stoplist — it is
+    ///     user-curated state, and changes to it should not trigger
+    ///     reclassification (which is what manifest-hash drift drives).
     /// </summary>
     public static string ComputeHash(LibraryProfile profile)
     {

@@ -1,6 +1,6 @@
-// // LibraryProfile.cs
-// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// LibraryProfile.cs
+// Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 namespace DocRAG.Core.Models;
 
@@ -64,6 +64,16 @@ public record LibraryProfile
     public IReadOnlyList<string> LikelySymbols { get; init; } = [];
 
     /// <summary>
+    ///     Per-library deny list: identifier-shaped tokens that should
+    ///     never be classified as symbols for this library, even if they
+    ///     would otherwise pass extractor keep rules. Populated by the
+    ///     calling LLM via the add_to_stoplist MCP tool. Carried forward
+    ///     to new versions of the same library when the new profile's
+    ///     stoplist is empty.
+    /// </summary>
+    public IReadOnlyList<string> Stoplist { get; init; } = [];
+
+    /// <summary>
     ///     URL of a canonical inventory page (for example an enum index
     ///     page) when recon spots one. Optional.
     /// </summary>
@@ -88,5 +98,5 @@ public record LibraryProfile
     /// <summary>
     ///     Current schema version emitted by this codebase.
     /// </summary>
-    public const int CurrentSchemaVersion = 1;
+    public const int CurrentSchemaVersion = 2;
 }

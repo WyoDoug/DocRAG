@@ -1,6 +1,6 @@
-// // SearchTools.cs
-// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// SearchTools.cs
+// Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 #region Usings
 
@@ -342,9 +342,13 @@ public static class SearchTools
         if (library != null && resolvedVersion != null)
         {
             var indexRepo = repositoryFactory.GetLibraryIndexRepository(profile);
+            var bm25ShardRepo = repositoryFactory.GetBm25ShardRepository(profile);
             var index = await indexRepo.GetAsync(library, resolvedVersion, ct);
-            if (index != null)
-                result = Bm25Scorer.Score(index.Bm25, query);
+            if (index != null && index.Bm25.DocumentCount > 0)
+            {
+                var lookup = new ShardedBm25TermLookup(bm25ShardRepo, library, resolvedVersion, index.Bm25.ShardCount);
+                result = await Bm25Scorer.ScoreAsync(lookup, index.Bm25, query, ct);
+            }
         }
 
         return result;

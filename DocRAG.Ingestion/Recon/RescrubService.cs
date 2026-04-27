@@ -1,6 +1,6 @@
-// // RescrubService.cs
-// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// RescrubService.cs
+// Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 #region Usings
 
@@ -49,6 +49,8 @@ public class RescrubService
     public async Task<RescrubResult> RescrubAsync(IChunkRepository chunkRepo,
                                                   ILibraryProfileRepository profileRepo,
                                                   ILibraryIndexRepository indexRepo,
+                                                  IBm25ShardRepository bm25ShardRepo,
+                                                  IExcludedSymbolsRepository excludedRepo,
                                                   string libraryId,
                                                   string version,
                                                   RescrubOptions options,
@@ -57,6 +59,8 @@ public class RescrubService
         ArgumentNullException.ThrowIfNull(chunkRepo);
         ArgumentNullException.ThrowIfNull(profileRepo);
         ArgumentNullException.ThrowIfNull(indexRepo);
+        ArgumentNullException.ThrowIfNull(bm25ShardRepo);
+        ArgumentNullException.ThrowIfNull(excludedRepo);
         ArgumentException.ThrowIfNullOrEmpty(libraryId);
         ArgumentException.ThrowIfNullOrEmpty(version);
         ArgumentNullException.ThrowIfNull(options);
@@ -67,13 +71,15 @@ public class RescrubService
         if (profile == null)
             result = new RescrubResult { LibraryId = libraryId, Version = version, ReconNeeded = true };
         else
-            result = await RunRescrubAsync(chunkRepo, indexRepo, libraryId, version, profile, options, ct);
+            result = await RunRescrubAsync(chunkRepo, indexRepo, bm25ShardRepo, excludedRepo, libraryId, version, profile, options, ct);
 
         return result;
     }
 
     private async Task<RescrubResult> RunRescrubAsync(IChunkRepository chunkRepo,
                                                       ILibraryIndexRepository indexRepo,
+                                                      IBm25ShardRepository bm25ShardRepo,
+                                                      IExcludedSymbolsRepository excludedRepo,
                                                       string libraryId,
                                                       string version,
                                                       LibraryProfile profile,
@@ -86,7 +92,10 @@ public class RescrubService
 
         var doReclassify = ResolveReClassify(options.ReClassify, profile, existingIndex);
         var corpus = BuildCorpusContext(scoped);
-        var boundaryIssues = options.BoundaryAudit ? CountBoundaryIssues(scoped) : 0;
+        var boundaryIssues = options.BoundaryAudit ? ChunkBoundaryAudit.CountIssues(scoped) : 0;
+
+        var accumulator = new RejectionAccumulator(libraryId, version, Math.Max(scoped.Count, 1));
+        var keptCount = 0;
 
         var processedDiffs = await ProcessChunksAsync(chunkRepo,
                                                       scoped,
@@ -94,19 +103,31 @@ public class RescrubService
                                                       corpus,
                                                       doReclassify,
                                                       options.DryRun,
+                                                      accumulator,
+                                                      count => keptCount += count,
                                                       ct
                                                      );
+
+        var excludedEntries = accumulator.Build();
+        var excludedCount = excludedEntries.Count;
 
         var indexesBuilt = false;
         if (options.RebuildIndexes && !options.DryRun)
         {
-            await PersistLibraryIndexAsync(indexRepo, libraryId, version, profile, corpus, scoped, ct);
+            await PersistLibraryIndexAsync(indexRepo, bm25ShardRepo, libraryId, version, profile, corpus, scoped, ct);
             indexesBuilt = true;
+        }
+
+        if (!options.DryRun)
+        {
+            await excludedRepo.DeleteAllForLibraryAsync(libraryId, version, ct);
+            await excludedRepo.UpsertManyAsync(excludedEntries, ct);
         }
 
         var sample = options.DryRun
                          ? processedDiffs
                          : processedDiffs.Take(SampleDiffsCount).ToList();
+        var hints = BuildHints(libraryId, version, scoped.Count, keptCount, excludedCount);
 
         var result = new RescrubResult
                          {
@@ -118,14 +139,17 @@ public class RescrubService
                              DidReclassify = doReclassify,
                              IndexesBuilt = indexesBuilt,
                              DryRun = options.DryRun,
-                             SampleDiffs = sample
+                             SampleDiffs = sample,
+                             ExcludedCount = excludedCount,
+                             Hints = hints
                          };
 
-        mLogger.LogInformation("Rescrub {Library}/{Version}: processed={Processed}, changed={Changed}, reclassify={Reclassify}, dryRun={DryRun}",
+        mLogger.LogInformation("Rescrub {Library}/{Version}: processed={Processed}, changed={Changed}, excluded={Excluded}, reclassify={Reclassify}, dryRun={DryRun}",
                                libraryId,
                                version,
                                scoped.Count,
                                processedDiffs.Count,
+                               excludedCount,
                                doReclassify,
                                options.DryRun
                               );
@@ -139,19 +163,26 @@ public class RescrubService
                                                              CorpusContext corpus,
                                                              bool doReclassify,
                                                              bool dryRun,
+                                                             RejectionAccumulator accumulator,
+                                                             Action<int> keptObserved,
                                                              CancellationToken ct)
     {
         var diffs = new List<RescrubDiff>();
         var updated = new List<DocChunk>();
 
-        foreach(var chunk in chunks)
+        for (int i = 0; i < chunks.Count; i++)
         {
-            var (newChunk, diff) = await RescrubOneAsync(chunk, profile, corpus, doReclassify, ct);
-            if (diff != null)
+            var chunk = chunks[i];
+            var oneResult = await RescrubOneAsync(chunk, profile, corpus, doReclassify, ct);
+            keptObserved(oneResult.Extracted.Symbols.Count);
+            foreach(var rejected in oneResult.Extracted.Rejected)
+                accumulator.Record(rejected, i, chunk.Content);
+
+            if (oneResult.Diff != null)
             {
-                diffs.Add(diff);
+                diffs.Add(oneResult.Diff);
                 if (!dryRun)
-                    updated.Add(newChunk);
+                    updated.Add(oneResult.Chunk);
             }
         }
 
@@ -161,11 +192,11 @@ public class RescrubService
         return diffs;
     }
 
-    private async Task<(DocChunk Chunk, RescrubDiff? Diff)> RescrubOneAsync(DocChunk chunk,
-                                                                            LibraryProfile profile,
-                                                                            CorpusContext corpus,
-                                                                            bool doReclassify,
-                                                                            CancellationToken ct)
+    private async Task<RescrubOneResult> RescrubOneAsync(DocChunk chunk,
+                                                         LibraryProfile profile,
+                                                         CorpusContext corpus,
+                                                         bool doReclassify,
+                                                         CancellationToken ct)
     {
         var extracted = mExtractor.Extract(chunk.Content, profile, corpus);
 
@@ -199,7 +230,13 @@ public class RescrubService
                        };
         }
 
-        return (newChunk, diff);
+        var result = new RescrubOneResult
+                         {
+                             Chunk = newChunk,
+                             Diff = diff,
+                             Extracted = extracted
+                         };
+        return result;
     }
 
     private async Task<Core.Enums.DocCategory> ReclassifyAsync(DocChunk chunk, LibraryProfile profile, CancellationToken ct)
@@ -306,40 +343,8 @@ public class RescrubService
         return stripped;
     }
 
-    private static int CountBoundaryIssues(IReadOnlyList<DocChunk> chunks)
-    {
-        int count = 0;
-        foreach(var chunk in chunks)
-        {
-            var trimmed = chunk.Content.TrimEnd();
-            var leading = chunk.Content.TrimStart();
-            var trailingDot = trimmed.Length > 0 && trimmed[^1] == '.' && LooksLikePartialIdentifier(LastWord(trimmed));
-            var leadingDot = leading.Length > 0 && leading[0] == '.';
-            if (trailingDot || leadingDot)
-                count++;
-        }
-        return count;
-    }
-
-    private static string LastWord(string text)
-    {
-        var idx = text.Length - 1;
-        while (idx >= 0 && (char.IsLetterOrDigit(text[idx]) || text[idx] == '_' || text[idx] == '.'))
-            idx--;
-        var result = text[(idx + 1)..];
-        return result;
-    }
-
-    private static bool LooksLikePartialIdentifier(string word)
-    {
-        var hasContent = !string.IsNullOrEmpty(word);
-        var startsLetter = hasContent && char.IsLetter(word[0]);
-        var endsDot = hasContent && word[^1] == '.';
-        var result = startsLetter && endsDot;
-        return result;
-    }
-
     private async Task PersistLibraryIndexAsync(ILibraryIndexRepository indexRepo,
+                                                IBm25ShardRepository bm25ShardRepo,
                                                 string libraryId,
                                                 string version,
                                                 LibraryProfile profile,
@@ -355,14 +360,15 @@ public class RescrubService
                                LastBuiltUtc = DateTime.UtcNow
                            };
 
-        var bm25 = Bm25IndexBuilder.Build(chunks);
+        var bm25Build = Bm25IndexBuilder.Build(libraryId, version, chunks);
+        await bm25ShardRepo.ReplaceShardsAsync(libraryId, version, bm25Build.Shards, ct);
 
         var index = new LibraryIndex
                         {
                             Id = LibraryIndexRepository.MakeId(libraryId, version),
                             LibraryId = libraryId,
                             Version = version,
-                            Bm25 = bm25,
+                            Bm25 = bm25Build.Stats,
                             CodeFenceSymbols = corpus.CodeFenceSymbols.ToList(),
                             Manifest = manifest
                         };
@@ -385,7 +391,41 @@ public class RescrubService
         RegexOptions.Compiled | RegexOptions.Singleline | RegexOptions.IgnoreCase
     );
 
+    private sealed record RescrubOneResult
+    {
+        public required DocChunk Chunk { get; init; }
+        public required RescrubDiff? Diff { get; init; }
+        public required ExtractedSymbols Extracted { get; init; }
+    }
+
+    private static IReadOnlyList<string> BuildHints(string libraryId,
+                                                     string version,
+                                                     int processedChunks,
+                                                     int keptCount,
+                                                     int excludedCount)
+    {
+        var totalCandidates = keptCount + excludedCount;
+        var ratio = totalCandidates > 0 ? (double) excludedCount / totalCandidates : 0;
+        var trigger = excludedCount >= HintMinAbsoluteExclusions
+                   && ratio >= HintMinExclusionRatio;
+        IReadOnlyList<string> result = trigger
+                                            ? new[]
+                                                  {
+                                                      $"Rescrub complete: {processedChunks} chunks, {keptCount} candidate tokens kept, {excludedCount} excluded as likely noise.",
+                                                      "If list_classes/list_functions output looks off, refine per-library:",
+                                                      $"  list_excluded_symbols(library='{libraryId}', version='{version}') — review rejections with sample sentences",
+                                                      "  add_to_likely_symbols(...) — promote tokens that ARE real symbols",
+                                                      "  add_to_stoplist(...) — demote tokens that are noise",
+                                                      "  Then call rescrub_library again to apply.",
+                                                      "These steps are OPTIONAL — only worth running if symbol coverage looks wrong on spot-check."
+                                                  }
+                                            : Array.Empty<string>();
+        return result;
+    }
+
     private const int SampleDiffsCount = 10;
     private const int MinIdentifierLength = 2;
     private const string LanguagesSeparator = ", ";
+    private const int HintMinAbsoluteExclusions = 20;
+    private const double HintMinExclusionRatio = 0.05;
 }

@@ -1,6 +1,6 @@
-// // RescrubServiceTests.cs
-// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// RescrubServiceTests.cs
+// Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 #region Usings
 
@@ -12,6 +12,7 @@ using DocRAG.Ingestion.Symbols;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
+using NSubstitute.ReceivedExtensions;
 
 #endregion
 
@@ -26,12 +27,16 @@ public sealed class RescrubServiceTests
         var chunkRepo = Substitute.For<IChunkRepository>();
         var profileRepo = Substitute.For<ILibraryProfileRepository>();
         var indexRepo = Substitute.For<ILibraryIndexRepository>();
+        var bm25ShardRepo = Substitute.For<IBm25ShardRepository>();
+        var excludedRepo = Substitute.For<IExcludedSymbolsRepository>();
 
         profileRepo.GetAsync("lib", "1.0", Arg.Any<CancellationToken>()).Returns((LibraryProfile?) null);
 
         var result = await service.RescrubAsync(chunkRepo,
                                                 profileRepo,
                                                 indexRepo,
+                                                bm25ShardRepo,
+                                                excludedRepo,
                                                 "lib",
                                                 "1.0",
                                                 new RescrubOptions(),
@@ -49,6 +54,8 @@ public sealed class RescrubServiceTests
         var chunkRepo = Substitute.For<IChunkRepository>();
         var profileRepo = Substitute.For<ILibraryProfileRepository>();
         var indexRepo = Substitute.For<ILibraryIndexRepository>();
+        var bm25ShardRepo = Substitute.For<IBm25ShardRepository>();
+        var excludedRepo = Substitute.For<IExcludedSymbolsRepository>();
 
         profileRepo.GetAsync("lib", "1.0", Arg.Any<CancellationToken>())
                    .Returns(MakeProfile());
@@ -61,6 +68,8 @@ public sealed class RescrubServiceTests
         var result = await service.RescrubAsync(chunkRepo,
                                                 profileRepo,
                                                 indexRepo,
+                                                bm25ShardRepo,
+                                                excludedRepo,
                                                 "lib",
                                                 "1.0",
                                                 options,
@@ -81,6 +90,8 @@ public sealed class RescrubServiceTests
         var chunkRepo = Substitute.For<IChunkRepository>();
         var profileRepo = Substitute.For<ILibraryProfileRepository>();
         var indexRepo = Substitute.For<ILibraryIndexRepository>();
+        var bm25ShardRepo = Substitute.For<IBm25ShardRepository>();
+        var excludedRepo = Substitute.For<IExcludedSymbolsRepository>();
 
         profileRepo.GetAsync("lib", "1.0", Arg.Any<CancellationToken>())
                    .Returns(MakeProfile());
@@ -93,6 +104,8 @@ public sealed class RescrubServiceTests
         var result = await service.RescrubAsync(chunkRepo,
                                                 profileRepo,
                                                 indexRepo,
+                                                bm25ShardRepo,
+                                                excludedRepo,
                                                 "lib",
                                                 "1.0",
                                                 options,
@@ -124,6 +137,7 @@ public sealed class RescrubServiceTests
         var chunkRepo = Substitute.For<IChunkRepository>();
         var profileRepo = Substitute.For<ILibraryProfileRepository>();
         var indexRepo = Substitute.For<ILibraryIndexRepository>();
+        var bm25ShardRepo = Substitute.For<IBm25ShardRepository>();
 
         var profile = MakeProfile();
         profileRepo.GetAsync("lib", "1.0", Arg.Any<CancellationToken>()).Returns(profile);
@@ -150,9 +164,13 @@ public sealed class RescrubServiceTests
                               }
                          );
 
+        var excludedRepo = Substitute.For<IExcludedSymbolsRepository>();
+
         var result = await service.RescrubAsync(chunkRepo,
                                                 profileRepo,
                                                 indexRepo,
+                                                bm25ShardRepo,
+                                                excludedRepo,
                                                 "lib",
                                                 "1.0",
                                                 new RescrubOptions(),
@@ -226,5 +244,125 @@ public sealed class RescrubServiceTests
                              ParserVersion = ParserVersionInfo.Current
                          };
         return result;
+    }
+
+    [Fact]
+    public async Task PersistsRejectionsToExcludedRepository()
+    {
+        var service = MakeService();
+        var chunkRepo = Substitute.For<IChunkRepository>();
+        var profileRepo = Substitute.For<ILibraryProfileRepository>();
+        var indexRepo = Substitute.For<ILibraryIndexRepository>();
+        var bm25ShardRepo = Substitute.For<IBm25ShardRepository>();
+        var excludedRepo = Substitute.For<IExcludedSymbolsRepository>();
+
+        profileRepo.GetAsync("lib", "1.0", Arg.Any<CancellationToken>()).Returns(MakeProfile());
+        chunkRepo.GetChunksAsync("lib", "1.0", Arg.Any<CancellationToken>())
+                 .Returns(new[] { MakeLegacyChunk("The axis homes when MoveLinear runs.") });
+
+        var result = await service.RescrubAsync(chunkRepo,
+                                                profileRepo,
+                                                indexRepo,
+                                                bm25ShardRepo,
+                                                excludedRepo,
+                                                "lib",
+                                                "1.0",
+                                                new RescrubOptions(),
+                                                TestContext.Current.CancellationToken
+                                               );
+
+        await excludedRepo.Received(1).DeleteAllForLibraryAsync("lib", "1.0", Arg.Any<CancellationToken>());
+        await excludedRepo.Received(1).UpsertManyAsync(Arg.Any<IEnumerable<ExcludedSymbol>>(), Arg.Any<CancellationToken>());
+        Assert.True(result.ExcludedCount > 0);
+    }
+
+    [Fact]
+    public async Task DryRunDoesNotPersistRejections()
+    {
+        var service = MakeService();
+        var chunkRepo = Substitute.For<IChunkRepository>();
+        var profileRepo = Substitute.For<ILibraryProfileRepository>();
+        var indexRepo = Substitute.For<ILibraryIndexRepository>();
+        var bm25ShardRepo = Substitute.For<IBm25ShardRepository>();
+        var excludedRepo = Substitute.For<IExcludedSymbolsRepository>();
+
+        profileRepo.GetAsync("lib", "1.0", Arg.Any<CancellationToken>()).Returns(MakeProfile());
+        chunkRepo.GetChunksAsync("lib", "1.0", Arg.Any<CancellationToken>())
+                 .Returns(new[] { MakeLegacyChunk("The axis homes when MoveLinear runs.") });
+
+        var result = await service.RescrubAsync(chunkRepo,
+                                                profileRepo,
+                                                indexRepo,
+                                                bm25ShardRepo,
+                                                excludedRepo,
+                                                "lib",
+                                                "1.0",
+                                                new RescrubOptions { DryRun = true },
+                                                TestContext.Current.CancellationToken
+                                               );
+
+        await excludedRepo.DidNotReceive().DeleteAllForLibraryAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await excludedRepo.DidNotReceive().UpsertManyAsync(Arg.Any<IEnumerable<ExcludedSymbol>>(), Arg.Any<CancellationToken>());
+        Assert.True(result.ExcludedCount > 0);
+    }
+
+    [Fact]
+    public async Task EmitsHintsWhenRatioAndCountThresholdsMet()
+    {
+        var service = MakeService();
+        var chunkRepo = Substitute.For<IChunkRepository>();
+        var profileRepo = Substitute.For<ILibraryProfileRepository>();
+        var indexRepo = Substitute.For<ILibraryIndexRepository>();
+        var bm25ShardRepo = Substitute.For<IBm25ShardRepository>();
+        var excludedRepo = Substitute.For<IExcludedSymbolsRepository>();
+
+        profileRepo.GetAsync("lib", "1.0", Arg.Any<CancellationToken>()).Returns(MakeProfile());
+        var noiseChunks = Enumerable.Range(0, 30)
+                                    .Select(i => MakeLegacyChunk($"alpha{i} beta{i} gamma{i} delta{i} epsilon{i}."))
+                                    .ToArray();
+        chunkRepo.GetChunksAsync("lib", "1.0", Arg.Any<CancellationToken>()).Returns(noiseChunks);
+
+        var result = await service.RescrubAsync(chunkRepo,
+                                                profileRepo,
+                                                indexRepo,
+                                                bm25ShardRepo,
+                                                excludedRepo,
+                                                "lib",
+                                                "1.0",
+                                                new RescrubOptions(),
+                                                TestContext.Current.CancellationToken
+                                               );
+
+        Assert.True(result.ExcludedCount >= 20);
+        Assert.NotEmpty(result.Hints);
+        Assert.Contains(result.Hints, h => h.Contains("list_excluded_symbols"));
+    }
+
+    [Fact]
+    public async Task SuppressesHintsBelowAbsoluteFloor()
+    {
+        var service = MakeService();
+        var chunkRepo = Substitute.For<IChunkRepository>();
+        var profileRepo = Substitute.For<ILibraryProfileRepository>();
+        var indexRepo = Substitute.For<ILibraryIndexRepository>();
+        var bm25ShardRepo = Substitute.For<IBm25ShardRepository>();
+        var excludedRepo = Substitute.For<IExcludedSymbolsRepository>();
+
+        profileRepo.GetAsync("lib", "1.0", Arg.Any<CancellationToken>()).Returns(MakeProfile());
+        chunkRepo.GetChunksAsync("lib", "1.0", Arg.Any<CancellationToken>())
+                 .Returns(new[] { MakeLegacyChunk("The axis homes.") });
+
+        var result = await service.RescrubAsync(chunkRepo,
+                                                profileRepo,
+                                                indexRepo,
+                                                bm25ShardRepo,
+                                                excludedRepo,
+                                                "lib",
+                                                "1.0",
+                                                new RescrubOptions(),
+                                                TestContext.Current.CancellationToken
+                                               );
+
+        Assert.Empty(result.Hints);
     }
 }

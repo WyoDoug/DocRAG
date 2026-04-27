@@ -1,6 +1,6 @@
-// // RescrubResult.cs
-// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// RescrubResult.cs
+// Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 namespace DocRAG.Core.Models;
 
@@ -70,4 +70,19 @@ public record RescrubResult
     ///     caller should run recon_library and submit_library_profile first.
     /// </summary>
     public bool ReconNeeded { get; init; }
+
+    /// <summary>
+    ///     Total number of distinct tokens the extractor rejected during
+    ///     this rescrub. Zero when the rescrub was a no-op (ReconNeeded or
+    ///     no chunks).
+    /// </summary>
+    public int ExcludedCount { get; init; }
+
+    /// <summary>
+    ///     Optional advisory text the calling LLM may surface to the user.
+    ///     Populated only when the rescrub crossed both threshold values
+    ///     (≥5% of candidates excluded AND ≥20 absolute exclusions);
+    ///     otherwise empty.
+    /// </summary>
+    public IReadOnlyList<string> Hints { get; init; } = [];
 }

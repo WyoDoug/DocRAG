@@ -1,6 +1,6 @@
-// // SymbolExtractorTests.cs
-// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// SymbolExtractorTests.cs
+// Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 #region Usings
 
@@ -161,6 +161,224 @@ public sealed class SymbolExtractorTests
         Assert.Contains(result.Symbols, s => s.Name == "AutofocusSetup");
     }
 
+    [Theory]
+    [InlineData("IMPORTANT")]
+    [InlineData("HARDWARE")]
+    [InlineData("RAM")]
+    [InlineData("CPU")]
+    [InlineData("BD")]
+    [InlineData("TCP")]
+    [InlineData("UTF")]
+    public void DropsAllUppercaseShortTokenWhenOnlyStructureSignal(string token)
+    {
+        var profile = MakeProfile([]);
+        var extractor = new SymbolExtractor();
+
+        var result = extractor.Extract($"The {token} field stores the value.", profile);
+
+        Assert.DoesNotContain(result.Symbols, s => s.Name == token);
+    }
+
+    [Theory]
+    [InlineData("PIDController")]
+    [InlineData("XMLParser")]
+    [InlineData("IOError")]
+    [InlineData("HTTPRequest")]
+    public void KeepsPascalCaseCompoundStartingWithAcronym(string token)
+    {
+        var profile = MakeProfile([]);
+        var extractor = new SymbolExtractor();
+
+        var result = extractor.Extract($"Use {token} to handle the operation.", profile);
+
+        Assert.Contains(result.Symbols, s => s.Name == token);
+    }
+
+    [Theory]
+    [InlineData("MoveLinear")]
+    [InlineData("EasyTune")]
+    [InlineData("HyperWire")]
+    [InlineData("MachineApps")]
+    public void KeepsClassicCamelCaseCompound(string token)
+    {
+        var profile = MakeProfile([]);
+        var extractor = new SymbolExtractor();
+
+        var result = extractor.Extract($"Use {token} to do the thing.", profile);
+
+        Assert.Contains(result.Symbols, s => s.Name == token);
+    }
+
+    [Fact]
+    public void DropsAllUpperShortTokenEvenIfProseFrequent()
+    {
+        // RAM mentioned 5 times in prose corpus-wide. Without other signal
+        // (likely-symbols, code-fence, declared, callable) it must NOT survive
+        // — the prose-frequent rule is gated against likely-abbreviation tokens.
+        var profile = MakeProfile([]);
+        var extractor = new SymbolExtractor(proseMentionThreshold: 3);
+        var corpus = new CorpusContext { ProseMentionCounts = new Dictionary<string, int> { ["RAM"] = 5 } };
+
+        var result = extractor.Extract("The RAM stores the data.", profile, corpus);
+
+        Assert.DoesNotContain(result.Symbols, s => s.Name == "RAM");
+    }
+
+    [Fact]
+    public void KeepsAllUpperShortTokenIfInLikelySymbols()
+    {
+        // Per-library override: PSO is a real Aerotech symbol (Position
+        // Synchronized Output). With it in LikelySymbols, the abbreviation
+        // gate is bypassed.
+        var profile = MakeProfile(["PSO"]);
+        var extractor = new SymbolExtractor();
+
+        var result = extractor.Extract("Configure the PSO output for the axis.", profile);
+
+        Assert.Contains(result.Symbols, s => s.Name == "PSO");
+    }
+
+    [Theory]
+    [InlineData("GHz")]
+    [InlineData("MHz")]
+    [InlineData("kHz")]
+    [InlineData("RPM")]
+    [InlineData("rpm")]
+    [InlineData("psi")]
+    [InlineData("dB")]
+    [InlineData("kB")]
+    [InlineData("MB")]
+    public void DropsUnitAbbreviationByDefault(string unit)
+    {
+        var profile = MakeProfile([]);
+        var extractor = new SymbolExtractor();
+
+        var result = extractor.Extract($"The signal is 100 {unit} at peak.", profile);
+
+        Assert.DoesNotContain(result.Symbols, s => s.Name == unit);
+    }
+
+    [Theory]
+    [InlineData("IMPORTANT")]
+    [InlineData("NOTE")]
+    [InlineData("WARNING")]
+    [InlineData("CAUTION")]
+    [InlineData("BACK")]
+    [InlineData("OK")]
+    public void DropsDocCalloutWord(string word)
+    {
+        // Doc-callout words appear at the head of inline notes
+        // ("IMPORTANT: do this") and tokenize as identifier-shaped. They
+        // are stoplisted regardless of casing.
+        var profile = MakeProfile([]);
+        var extractor = new SymbolExtractor();
+
+        var result = extractor.Extract($"{word}: configure the axis carefully before homing.", profile);
+
+        Assert.DoesNotContain(result.Symbols, s => s.Name == word);
+    }
+
+    [Fact]
+    public void RejectionReasonGlobalStoplist()
+    {
+        var profile = MakeProfile([]);
+        var extractor = new SymbolExtractor();
+
+        var result = extractor.Extract("The axis homes to the marker.", profile);
+
+        Assert.Contains(result.Rejected, r => r.Name == "The" && r.Reason == SymbolRejectionReason.GlobalStoplist);
+    }
+
+    [Fact]
+    public void RejectionReasonLibraryStoplist()
+    {
+        var profile = MakeProfileWithStoplist(["BrandX"]);
+        var extractor = new SymbolExtractor();
+
+        var result = extractor.Extract("Use BrandX hardware to drive the axis.", profile);
+
+        Assert.Contains(result.Rejected, r => r.Name == "BrandX" && r.Reason == SymbolRejectionReason.LibraryStoplist);
+        Assert.DoesNotContain(result.Symbols, s => s.Name == "BrandX");
+    }
+
+    [Fact]
+    public void RejectionReasonUnit()
+    {
+        var profile = MakeProfile([]);
+        var extractor = new SymbolExtractor();
+
+        var result = extractor.Extract("The signal is 100 GHz at peak.", profile);
+
+        Assert.Contains(result.Rejected, r => r.Name == "GHz" && r.Reason == SymbolRejectionReason.Unit);
+    }
+
+    [Fact]
+    public void RejectionReasonBelowMinLength()
+    {
+        // "_" is a valid identifier-start character that tokenizes as a
+        // single-char candidate. It is not in the global stoplist, so the
+        // length check fires (MinIdentifierLength == 2) and BelowMinLength
+        // is the reason.
+        var profile = MakeProfile([]);
+        var extractor = new SymbolExtractor();
+
+        var result = extractor.Extract("The _ value is set.", profile);
+
+        Assert.Contains(result.Rejected, r => r.Name == "_" && r.Reason == SymbolRejectionReason.BelowMinLength);
+    }
+
+    [Fact]
+    public void RejectionReasonLikelyAbbreviation()
+    {
+        // RAM has prose mentions >= threshold but is short all-uppercase, so
+        // IsLikelyAbbreviation blocks the prose-frequent rule. No other keep
+        // signal applies -- the reason should be LikelyAbbreviation, NOT
+        // NoStructureSignal.
+        var profile = MakeProfile([]);
+        var extractor = new SymbolExtractor(proseMentionThreshold: 3);
+        var corpus = new CorpusContext { ProseMentionCounts = new Dictionary<string, int> { ["RAM"] = 5 } };
+
+        var result = extractor.Extract("The RAM stores the data.", profile, corpus);
+
+        Assert.Contains(result.Rejected, r => r.Name == "RAM" && r.Reason == SymbolRejectionReason.LikelyAbbreviation);
+    }
+
+    [Fact]
+    public void RejectionReasonNoStructureSignal()
+    {
+        // "alongthing" is not in stoplist, not a unit, length OK, but has no
+        // mid-word capital, no underscore, no callable shape, no container,
+        // no prose-frequent mentions, not declared. NoStructureSignal.
+        var profile = MakeProfile([]);
+        var extractor = new SymbolExtractor();
+
+        var result = extractor.Extract("alongthing.", profile);
+
+        Assert.Contains(result.Rejected, r => r.Name == "alongthing" && r.Reason == SymbolRejectionReason.NoStructureSignal);
+    }
+
+    [Fact]
+    public void LibraryStoplistOverridesLikelySymbols()
+    {
+        // If a token is in BOTH lists, stoplist wins (matches existing
+        // extraction behavior -- Stoplist is a hard reject).
+        var profile = new LibraryProfile
+                          {
+                              Id = "test-lib/1.0",
+                              LibraryId = "test-lib",
+                              Version = "1.0",
+                              Source = "test",
+                              LikelySymbols = ["Foo"],
+                              Stoplist = ["Foo"]
+                          };
+        var extractor = new SymbolExtractor();
+
+        var result = extractor.Extract("Configure the Foo widget.", profile);
+
+        Assert.DoesNotContain(result.Symbols, s => s.Name == "Foo");
+        Assert.Contains(result.Rejected, r => r.Name == "Foo" && r.Reason == SymbolRejectionReason.LibraryStoplist);
+    }
+
     private static LibraryProfile MakeProfile(IReadOnlyList<string> likelySymbols)
     {
         var result = new LibraryProfile
@@ -170,6 +388,19 @@ public sealed class SymbolExtractorTests
                              Version = "1.0",
                              Source = "test",
                              LikelySymbols = likelySymbols
+                         };
+        return result;
+    }
+
+    private static LibraryProfile MakeProfileWithStoplist(IReadOnlyList<string> stoplist)
+    {
+        var result = new LibraryProfile
+                         {
+                             Id = "test-lib/1.0",
+                             LibraryId = "test-lib",
+                             Version = "1.0",
+                             Source = "test",
+                             Stoplist = stoplist
                          };
         return result;
     }

@@ -1,6 +1,6 @@
-// // ScrapeJobFactoryTests.cs
-// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// ScrapeJobFactoryTests.cs
+// Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 #region Usings
 
@@ -128,6 +128,22 @@ public sealed class ScrapeJobFactoryTests
         var job = ScrapeJobFactory.CreateFromUrl(TestUrl, TestLibraryId, TestVersion);
 
         Assert.Equal(TestVersion, job.Version);
+    }
+
+    [Fact]
+    public void CreateFromUrlForceCleanDefaultsToFalse()
+    {
+        var job = ScrapeJobFactory.CreateFromUrl(TestUrl, TestLibraryId, TestVersion);
+
+        Assert.False(job.ForceClean);
+    }
+
+    [Fact]
+    public void CreateFromUrlForceCleanTrueSetsField()
+    {
+        var job = ScrapeJobFactory.CreateFromUrl(TestUrl, TestLibraryId, TestVersion, forceClean: true);
+
+        Assert.True(job.ForceClean);
     }
 
     private const string TestUrl = "https://docs.example.com/api/v2/";

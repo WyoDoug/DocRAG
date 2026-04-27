@@ -1,6 +1,6 @@
-// // ServiceCollectionExtensions.cs
-// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// ServiceCollectionExtensions.cs
+// Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 #region Usings
 
@@ -48,6 +48,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IScrapeJobRepository, ScrapeJobRepository>();
         services.AddSingleton<ILibraryProfileRepository, LibraryProfileRepository>();
         services.AddSingleton<ILibraryIndexRepository, LibraryIndexRepository>();
+        services.AddSingleton<IBm25ShardRepository, Bm25ShardRepository>();
+        services.AddSingleton<IExcludedSymbolsRepository, ExcludedSymbolsRepository>();
 
         return services;
     }
@@ -62,6 +64,29 @@ public static class ServiceCollectionExtensions
                                                                cm.SetIgnoreExtraElements(ignoreExtraElements: true);
                                                            }
                                                           );
+        }
+
+        // Bm25Stats replaced the older Bm25Index; existing documents may
+        // still have the old "Postings" field at the Bm25 level. Tolerate
+        // it on read so the next rescrub can repopulate cleanly.
+        if (!BsonClassMap.IsClassMapRegistered(typeof(Bm25Stats)))
+        {
+            BsonClassMap.RegisterClassMap<Bm25Stats>(cm =>
+                                                     {
+                                                         cm.AutoMap();
+                                                         cm.SetIgnoreExtraElements(ignoreExtraElements: true);
+                                                     }
+                                                    );
+        }
+
+        if (!BsonClassMap.IsClassMapRegistered(typeof(LibraryIndex)))
+        {
+            BsonClassMap.RegisterClassMap<LibraryIndex>(cm =>
+                                                        {
+                                                            cm.AutoMap();
+                                                            cm.SetIgnoreExtraElements(ignoreExtraElements: true);
+                                                        }
+                                                       );
         }
     }
 }

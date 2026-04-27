@@ -1,7 +1,7 @@
-// // Program.cs
+// Program.cs
 
-// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 
 
@@ -192,6 +192,9 @@ builder.Services.AddSingleton<DocRAG.Ingestion.Symbols.SymbolExtractor>();
 
 // Rescrub service (consumed by rescrub_library MCP tool)
 builder.Services.AddSingleton<DocRAG.Ingestion.Recon.RescrubService>();
+
+// Rechunk service (consumed by rechunk_library MCP tool)
+builder.Services.AddSingleton<DocRAG.Ingestion.Recon.RechunkService>();
 
 
 

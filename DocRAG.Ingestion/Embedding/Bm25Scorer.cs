@@ -1,6 +1,6 @@
-// // Bm25Scorer.cs
-// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// Bm25Scorer.cs
+// Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 #region Usings
 
@@ -12,8 +12,11 @@ using DocRAG.Core.Models;
 namespace DocRAG.Ingestion.Embedding;
 
 /// <summary>
-///     Standard BM25 scoring against a pre-built Bm25Index. Used by the
-///     hybrid retrieval path to blend keyword scores with vector cosine
+///     Standard BM25 scoring against a sharded postings store. The scorer
+///     extracts query terms, asks the supplied <see cref="IBm25TermLookup"/>
+///     to pre-load whichever shards back those terms, then computes scores
+///     synchronously against the cached postings. Used by the hybrid
+///     retrieval path to blend keyword scores with vector cosine
 ///     similarity, especially valuable for identifier queries where
 ///     embedding similarity alone struggles to discriminate between
 ///     "mentions term" and "is canonical reference for term".
@@ -24,61 +27,50 @@ namespace DocRAG.Ingestion.Embedding;
 public static class Bm25Scorer
 {
     /// <summary>
-    ///     Score every chunk in the index against the query. Returns a
-    ///     dictionary keyed by chunk id; chunks with score 0 are omitted.
-    ///     Scores are not normalized — caller can normalize to [0,1] for
+    ///     Score every chunk against the query. Returns a dictionary
+    ///     keyed by chunk id; chunks with score 0 are omitted. Scores
+    ///     are not normalized — caller can normalize to [0,1] for
     ///     blending with vector cosine.
     /// </summary>
-    public static IReadOnlyDictionary<string, double> Score(Bm25Index index, string query)
+    public static async Task<IReadOnlyDictionary<string, double>> ScoreAsync(IBm25TermLookup termLookup,
+                                                                             Bm25Stats stats,
+                                                                             string query,
+                                                                             CancellationToken ct = default)
     {
-        ArgumentNullException.ThrowIfNull(index);
+        ArgumentNullException.ThrowIfNull(termLookup);
+        ArgumentNullException.ThrowIfNull(stats);
         ArgumentException.ThrowIfNullOrEmpty(query);
 
         var scores = new Dictionary<string, double>(StringComparer.Ordinal);
 
-        if (index.DocumentCount > 0)
-            ScoreNonEmptyIndex(index, query, scores);
+        if (stats.DocumentCount > 0)
+        {
+            var queryTerms = ExtractQueryTerms(query);
+            await termLookup.PreloadAsync(queryTerms, ct);
+            ScoreNonEmptyIndex(termLookup, stats, queryTerms, scores);
+        }
 
         return scores;
     }
 
-    private static void ScoreNonEmptyIndex(Bm25Index index, string query, Dictionary<string, double> scores)
-    {
-        var queryTerms = ExtractQueryTerms(query);
-        var avgLength = index.AverageDocLength > 0 ? index.AverageDocLength : 1.0;
-
-        foreach(var (term, postings) in EnumerateMatchingPostings(index, queryTerms))
-        {
-            var idf = ComputeIdf(index.DocumentCount, postings.Count);
-            foreach(var posting in postings)
-                AddTermScore(index, scores, posting, idf, avgLength);
-        }
-    }
-
-    private static IEnumerable<(string Term, IReadOnlyList<Bm25Posting> Postings)> EnumerateMatchingPostings(
-        Bm25Index index,
-        IReadOnlyList<string> queryTerms)
-    {
-        foreach(var term in queryTerms)
-        {
-            if (index.Postings.TryGetValue(term, out var postings))
-                yield return (term, postings);
-        }
-    }
-
     /// <summary>
     ///     Score and return the top-N chunk ids ordered by score desc.
-    ///     Convenience wrapper around <see cref="Score" />.
+    ///     Convenience wrapper around <see cref="ScoreAsync"/>.
     /// </summary>
-    public static IReadOnlyList<(string ChunkId, double Score)> TopN(Bm25Index index, string query, int n)
+    public static async Task<IReadOnlyList<(string ChunkId, double Score)>> TopNAsync(IBm25TermLookup termLookup,
+                                                                                      Bm25Stats stats,
+                                                                                      string query,
+                                                                                      int n,
+                                                                                      CancellationToken ct = default)
     {
-        ArgumentNullException.ThrowIfNull(index);
+        ArgumentNullException.ThrowIfNull(termLookup);
+        ArgumentNullException.ThrowIfNull(stats);
         ArgumentException.ThrowIfNullOrEmpty(query);
 
         if (n <= 0)
             throw new ArgumentOutOfRangeException(nameof(n), n, "n must be positive");
 
-        var scores = Score(index, query);
+        var scores = await ScoreAsync(termLookup, stats, query, ct);
         var ordered = scores.OrderByDescending(kv => kv.Value)
                             .Take(n)
                             .Select(kv => (kv.Key, kv.Value))
@@ -86,13 +78,32 @@ public static class Bm25Scorer
         return ordered;
     }
 
-    private static void AddTermScore(Bm25Index index,
+    private static void ScoreNonEmptyIndex(IBm25TermLookup termLookup,
+                                           Bm25Stats stats,
+                                           IReadOnlyList<string> queryTerms,
+                                           Dictionary<string, double> scores)
+    {
+        var avgLength = stats.AverageDocLength > 0 ? stats.AverageDocLength : 1.0;
+
+        foreach(var term in queryTerms)
+        {
+            var postings = termLookup.GetPostings(term);
+            if (postings.Count > 0)
+            {
+                var idf = ComputeIdf(stats.DocumentCount, postings.Count);
+                foreach(var posting in postings)
+                    AddTermScore(stats, scores, posting, idf, avgLength);
+            }
+        }
+    }
+
+    private static void AddTermScore(Bm25Stats stats,
                                      Dictionary<string, double> scores,
                                      Bm25Posting posting,
                                      double idf,
                                      double avgLength)
     {
-        var docLength = index.DocLengths.TryGetValue(posting.ChunkId, out var len) ? len : (int) avgLength;
+        var docLength = stats.DocLengths.TryGetValue(posting.ChunkId, out var len) ? len : (int) avgLength;
         var termFreq = posting.TermFrequency;
         var lengthNorm = 1.0 - B + (B * (docLength / avgLength));
         var numerator = termFreq * (K1 + 1.0);
@@ -110,8 +121,17 @@ public static class Bm25Scorer
         return result;
     }
 
-    private static IReadOnlyList<string> ExtractQueryTerms(string query)
+    /// <summary>
+    ///     Tokenize a query the SAME way <see cref="Bm25IndexBuilder"/>
+    ///     tokenizes chunks. Lowercased prose tokens AND original-cased
+    ///     identifier tokens, deduped. Public so callers (e.g.,
+    ///     <c>SearchTools</c>) can pre-feed the term list into the
+    ///     lookup if they want.
+    /// </summary>
+    public static IReadOnlyList<string> ExtractQueryTerms(string query)
     {
+        ArgumentException.ThrowIfNullOrEmpty(query);
+
         var terms = new List<string>();
 
         // Lowercase prose tokens.

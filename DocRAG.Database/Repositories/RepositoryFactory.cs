@@ -1,6 +1,6 @@
-// // RepositoryFactory.cs
-// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// RepositoryFactory.cs
+// Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 #region Usings
 
@@ -78,7 +78,7 @@ public class RepositoryFactory
     ///     Get a library-profile repository for the specified database profile.
     ///     Stores the per-(library, version) reconnaissance results.
     /// </summary>
-    public ILibraryProfileRepository GetLibraryProfileRepository(string? profile = null)
+    public virtual ILibraryProfileRepository GetLibraryProfileRepository(string? profile = null)
     {
         var context = mContextFactory.GetForProfile(profile);
         var result = new LibraryProfileRepository(context);
@@ -87,12 +87,36 @@ public class RepositoryFactory
 
     /// <summary>
     ///     Get a library-index repository for the specified database profile.
-    ///     Stores BM25 + CodeFenceSymbols + Manifest per (library, version).
+    ///     Stores BM25 stats + CodeFenceSymbols + Manifest per (library, version).
     /// </summary>
     public ILibraryIndexRepository GetLibraryIndexRepository(string? profile = null)
     {
         var context = mContextFactory.GetForProfile(profile);
         var result = new LibraryIndexRepository(context);
+        return result;
+    }
+
+    /// <summary>
+    ///     Get a BM25 shard repository for the specified database profile.
+    ///     Stores per-shard postings with per-term and per-shard GridFS
+    ///     spill for any payload exceeding the inline 16MB Mongo limit.
+    /// </summary>
+    public IBm25ShardRepository GetBm25ShardRepository(string? profile = null)
+    {
+        var context = mContextFactory.GetForProfile(profile);
+        var result = new Bm25ShardRepository(context);
+        return result;
+    }
+
+    /// <summary>
+    ///     Get an excluded-symbols repository for the specified database
+    ///     profile. Stores per-(library, version) extractor rejections
+    ///     captured during rescrub.
+    /// </summary>
+    public virtual IExcludedSymbolsRepository GetExcludedSymbolsRepository(string? profile = null)
+    {
+        var context = mContextFactory.GetForProfile(profile);
+        var result = new ExcludedSymbolsRepository(context);
         return result;
     }
 }

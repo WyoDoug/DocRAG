@@ -6,8 +6,9 @@
 # DocRAG project-specific
 Scratch/
 .claude/
-.vscode/
 playwright-tmp/
+
+# .vscode is partially tracked — see allow-list further down for which files we keep
 
 # dotenv files
 .env
@@ -73,6 +74,9 @@ artifacts/
 
 # Tye
 .tye/
+
+# WiX Toolset — extension cache populated by `wix extension add`
+.wix/
 
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt

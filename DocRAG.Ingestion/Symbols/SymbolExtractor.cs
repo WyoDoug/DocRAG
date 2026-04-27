@@ -1,6 +1,6 @@
-// // SymbolExtractor.cs
-// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// SymbolExtractor.cs
+// Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 #region Usings
 
@@ -62,15 +62,29 @@ public class SymbolExtractor
         var likelySet = BuildLikelySet(profile);
 
         var kept = new List<Symbol>();
+        var rejected = new List<RejectedToken>();
         var seenNames = new HashSet<string>(StringComparer.Ordinal);
+        var seenRejected = new HashSet<string>(StringComparer.Ordinal);
 
-        foreach(var token in tokens.Where(t => IsAdmissible(t, likelySet, corpus)))
+        foreach(var token in tokens)
         {
-            var symbol = Classify(token, likelySet, profile);
-            if (!seenNames.Contains(symbol.Name))
+            var reason = GetRejectionReason(token, profile, likelySet, corpus);
+            if (reason.HasValue)
             {
-                seenNames.Add(symbol.Name);
-                kept.Add(symbol);
+                if (!seenRejected.Contains(token.Name))
+                {
+                    seenRejected.Add(token.Name);
+                    rejected.Add(new RejectedToken { Name = token.Name, Reason = reason.Value });
+                }
+            }
+            else
+            {
+                var symbol = Classify(token, likelySet, profile);
+                if (!seenNames.Contains(symbol.Name))
+                {
+                    seenNames.Add(symbol.Name);
+                    kept.Add(symbol);
+                }
             }
         }
 
@@ -78,23 +92,52 @@ public class SymbolExtractor
         var result = new ExtractedSymbols
                          {
                              Symbols = kept,
-                             PrimaryQualifiedName = primary
+                             PrimaryQualifiedName = primary,
+                             Rejected = rejected
                          };
         return result;
     }
 
-    private bool IsAdmissible(TokenCandidate token, HashSet<string> likelySet, CorpusContext corpus)
+    /// <summary>
+    ///     Return the rejection reason for this token, or null if it is
+    ///     admissible. Resolution order matches the original IsAdmissible:
+    ///     stoplist -> unit -> min-length -> keep-rule failure (with
+    ///     LikelyAbbreviation as a sub-reason of the prose-frequent path
+    ///     when applicable).
+    /// </summary>
+    private SymbolRejectionReason? GetRejectionReason(TokenCandidate token,
+                                                      LibraryProfile profile,
+                                                      HashSet<string> likelySet,
+                                                      CorpusContext corpus)
     {
-        var rejected = Stoplist.Contains(token.LeafName)
-                    || Stoplist.Contains(token.Name)
-                    || token.Name.Length < MinIdentifierLength;
-        var result = !rejected && ShouldKeep(token, likelySet, corpus);
+        var leafMatch = Stoplist.Match(token.LeafName, profile);
+        var nameMatch = Stoplist.Match(token.Name, profile);
+        var stopMatch = (leafMatch, nameMatch) switch
+        {
+            (StoplistMatch.Global, _) => StoplistMatch.Global,
+            (_, StoplistMatch.Global) => StoplistMatch.Global,
+            (StoplistMatch.Library, _) => StoplistMatch.Library,
+            (_, StoplistMatch.Library) => StoplistMatch.Library,
+            _ => StoplistMatch.None
+        };
+
+        var unitHit = UnitsLookup.IsUnit(token.LeafName) || UnitsLookup.IsUnit(token.Name);
+        var belowMin = token.Name.Length < MinIdentifierLength;
+
+        SymbolRejectionReason? result = (stopMatch, unitHit, belowMin) switch
+        {
+            (StoplistMatch.Global, _, _) => SymbolRejectionReason.GlobalStoplist,
+            (StoplistMatch.Library, _, _) => SymbolRejectionReason.LibraryStoplist,
+            (StoplistMatch.None, true, _) => SymbolRejectionReason.Unit,
+            (StoplistMatch.None, false, true) => SymbolRejectionReason.BelowMinLength,
+            _ => ResolveKeepRuleReason(token, likelySet, corpus)
+        };
         return result;
     }
 
-    private bool ShouldKeep(TokenCandidate token,
-                            HashSet<string> likelySet,
-                            CorpusContext corpus)
+    private SymbolRejectionReason? ResolveKeepRuleReason(TokenCandidate token,
+                                                          HashSet<string> likelySet,
+                                                          CorpusContext corpus)
     {
         var name = token.Name;
         var leaf = token.LeafName;
@@ -103,24 +146,77 @@ public class SymbolExtractor
         bool inCodeFence = corpus.CodeFenceSymbols.Contains(name) || corpus.CodeFenceSymbols.Contains(leaf);
         bool hasContainer = !string.IsNullOrEmpty(token.Container);
         bool hasInternalStructure = HasInternalStructure(name);
-        bool proseFrequent = IsProseFrequent(name, corpus) || IsProseFrequent(leaf, corpus);
+        var proseState = ResolveProseFrequent(name, leaf, corpus);
 
-        var result = token.IsDeclared
-                  || inLikely
-                  || inCodeFence
-                  || hasContainer
-                  || hasInternalStructure
-                  || token.HasCallableShape
-                  || token.HasGenericShape
-                  || proseFrequent;
+        bool admissible = token.IsDeclared
+                       || inLikely
+                       || inCodeFence
+                       || hasContainer
+                       || hasInternalStructure
+                       || token.HasCallableShape
+                       || token.HasGenericShape
+                       || proseState == ProseFrequentResult.Frequent;
+
+        SymbolRejectionReason? result;
+        if (admissible)
+            result = null;
+        else
+            result = proseState == ProseFrequentResult.BlockedByAbbreviation
+                         ? SymbolRejectionReason.LikelyAbbreviation
+                         : SymbolRejectionReason.NoStructureSignal;
         return result;
     }
 
-    private bool IsProseFrequent(string identifier, CorpusContext corpus)
+    private ProseFrequentResult ResolveProseFrequent(string name, string leaf, CorpusContext corpus)
     {
-        bool result = false;
-        if (corpus.ProseMentionCounts.TryGetValue(identifier, out var count))
-            result = count >= mProseMentionThreshold;
+        var nameState = ProseFrequentState(name, corpus);
+        var leafState = ProseFrequentState(leaf, corpus);
+
+        var combined = (nameState, leafState) switch
+        {
+            (ProseFrequentResult.Frequent, _) => ProseFrequentResult.Frequent,
+            (_, ProseFrequentResult.Frequent) => ProseFrequentResult.Frequent,
+            (ProseFrequentResult.BlockedByAbbreviation, _) => ProseFrequentResult.BlockedByAbbreviation,
+            (_, ProseFrequentResult.BlockedByAbbreviation) => ProseFrequentResult.BlockedByAbbreviation,
+            _ => ProseFrequentResult.NotFrequent
+        };
+        return combined;
+    }
+
+    private ProseFrequentResult ProseFrequentState(string identifier, CorpusContext corpus)
+    {
+        var hasMentions = corpus.ProseMentionCounts.TryGetValue(identifier, out var count);
+        var aboveThreshold = hasMentions && count >= mProseMentionThreshold;
+        var abbreviation = IsLikelyAbbreviation(identifier);
+
+        var result = (aboveThreshold, abbreviation) switch
+        {
+            (true, false) => ProseFrequentResult.Frequent,
+            (true, true) => ProseFrequentResult.BlockedByAbbreviation,
+            _ => ProseFrequentResult.NotFrequent
+        };
+        return result;
+    }
+
+    private enum ProseFrequentResult
+    {
+        NotFrequent,
+        Frequent,
+        BlockedByAbbreviation
+    }
+
+    /// <summary>
+    ///     All-uppercase tokens of length &lt;= ShortAbbreviationMaxLength are
+    ///     more likely to be acronyms or abbreviations than symbols (RAM, BD,
+    ///     PC, NET, TCP, UTF). They are NOT admissible via the prose-frequent
+    ///     rule alone — they need a stronger signal (likely-symbols list,
+    ///     code-fence appearance, declared form, callable shape).
+    /// </summary>
+    private static bool IsLikelyAbbreviation(string identifier)
+    {
+        var hasContent = !string.IsNullOrEmpty(identifier);
+        var allUpperOrDigit = hasContent && identifier.All(c => char.IsUpper(c) || char.IsDigit(c));
+        var result = allUpperOrDigit && identifier.Length <= ShortAbbreviationMaxLength;
         return result;
     }
 
@@ -134,11 +230,31 @@ public class SymbolExtractor
         return result;
     }
 
+    /// <summary>
+    ///     True when name contains a real camelCase boundary: either a
+    ///     lowercase-then-uppercase transition (the "x|Y" boundary in
+    ///     MoveLinear), or an uppercase-cluster followed by a lowercase
+    ///     cluster (the "XX|Yzz" boundary in PIDController, XMLParser,
+    ///     IOError). All-uppercase tokens (IMPORTANT, RAM, BD, CPU) and
+    ///     unit-style suffixes (GHz, MHz, kHz) do NOT have a camelCase
+    ///     boundary and return false.
+    /// </summary>
     private static bool HasMidWordCapital(string name)
     {
         bool found = false;
         for (int i = 1; i < name.Length && !found; i++)
-            found = char.IsUpper(name[i]) && char.IsLetter(name[i - 1]);
+        {
+            var prev = name[i - 1];
+            var curr = name[i];
+            var lowerToUpper = char.IsLower(prev) && char.IsUpper(curr);
+            var acronymThenLowerCluster = i >= 2
+                                       && char.IsUpper(name[i - 2])
+                                       && char.IsUpper(prev)
+                                       && char.IsLower(curr)
+                                       && i + 1 < name.Length
+                                       && char.IsLower(name[i + 1]);
+            found = lowerToUpper || acronymThenLowerCluster;
+        }
         return found;
     }
 
@@ -274,6 +390,7 @@ public class SymbolExtractor
 
     private const int DefaultProseMentionThreshold = 3;
     private const int MinIdentifierLength = 2;
+    private const int ShortAbbreviationMaxLength = 4;
 
     private const char Underscore = '_';
     private const char Dot = '.';

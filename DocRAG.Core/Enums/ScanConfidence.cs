@@ -1,6 +1,6 @@
-// // ScanConfidence.cs
-// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// ScanConfidence.cs
+// Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 namespace DocRAG.Core.Enums;
 

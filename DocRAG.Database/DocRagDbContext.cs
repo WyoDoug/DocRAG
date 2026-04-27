@@ -1,12 +1,13 @@
-// // DocRagDbContext.cs
-// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// DocRagDbContext.cs
+// Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 #region Usings
 
 using DocRAG.Core.Models;
 using Microsoft.Extensions.Options;
 using MongoDB.Driver;
+using MongoDB.Driver.GridFS;
 
 #endregion
 
@@ -50,6 +51,21 @@ public class DocRagDbContext
 
     public IMongoCollection<LibraryIndex> LibraryIndexes =>
         mDatabase.GetCollection<LibraryIndex>(CollectionLibraryIndexes);
+
+    public IMongoCollection<Bm25Shard> Bm25Shards =>
+        mDatabase.GetCollection<Bm25Shard>(CollectionBm25Shards);
+
+    public IMongoCollection<ExcludedSymbol> ExcludedSymbols =>
+        mDatabase.GetCollection<ExcludedSymbol>(CollectionExcludedSymbols);
+
+    /// <summary>
+    ///     GridFS bucket for spilled BM25 payloads (per-term postings or
+    ///     entire shards) that exceed the inline 16MB Mongo document
+    ///     limit. Reader and writer talk to this bucket via the shard
+    ///     repository — callers don't construct it directly.
+    /// </summary>
+    public IGridFSBucket Bm25Bucket =>
+        new GridFSBucket(mDatabase, new GridFSBucketOptions { BucketName = Bm25BucketName });
 
     private readonly IMongoDatabase mDatabase;
 
@@ -112,6 +128,36 @@ public class DocRagDbContext
                                                                                       ),
                                                     cancellationToken: ct
                                                    );
+
+        // Bm25Shards: compound index on LibraryId + Version + ShardIndex
+        // for batch-load by (lib, ver) and pinpoint lookup by shard.
+        var shardKeys = Builders<Bm25Shard>.IndexKeys;
+        await Bm25Shards.Indexes.CreateOneAsync(new CreateIndexModel<Bm25Shard>(shardKeys.Combine(shardKeys.Ascending(s => s.LibraryId),
+                                                                                                   shardKeys.Ascending(s => s.Version),
+                                                                                                   shardKeys.Ascending(s => s.ShardIndex)
+                                                                                                  )
+                                                                               ),
+                                                cancellationToken: ct
+                                               );
+
+        // ExcludedSymbols: compound on (LibraryId, Version, Reason) for the
+        // list_excluded_symbols reason filter, plus (LibraryId, Version, Name)
+        // for fast remove-by-name when the LLM promotes/demotes tokens.
+        var excludedKeys = Builders<ExcludedSymbol>.IndexKeys;
+        await ExcludedSymbols.Indexes.CreateOneAsync(new CreateIndexModel<ExcludedSymbol>(excludedKeys.Combine(excludedKeys.Ascending(e => e.LibraryId),
+                                                                                                                excludedKeys.Ascending(e => e.Version),
+                                                                                                                excludedKeys.Ascending(e => e.Reason)
+                                                                                                               )
+                                                                                          ),
+                                                     cancellationToken: ct
+                                                    );
+        await ExcludedSymbols.Indexes.CreateOneAsync(new CreateIndexModel<ExcludedSymbol>(excludedKeys.Combine(excludedKeys.Ascending(e => e.LibraryId),
+                                                                                                                excludedKeys.Ascending(e => e.Version),
+                                                                                                                excludedKeys.Ascending(e => e.Name)
+                                                                                                               )
+                                                                                          ),
+                                                     cancellationToken: ct
+                                                    );
     }
 
     private const string CollectionLibraries = "libraries";
@@ -123,4 +169,7 @@ public class DocRagDbContext
     private const string CollectionScrapeJobs = "scrapeJobs";
     private const string CollectionLibraryProfiles = "libraryProfiles";
     private const string CollectionLibraryIndexes = "libraryIndexes";
+    private const string CollectionBm25Shards = "bm25Shards";
+    private const string CollectionExcludedSymbols = "library_excluded_symbols";
+    private const string Bm25BucketName = "bm25";
 }
