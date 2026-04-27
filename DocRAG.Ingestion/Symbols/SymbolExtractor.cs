@@ -87,6 +87,8 @@ public class SymbolExtractor
     {
         var rejected = Stoplist.Contains(token.LeafName)
                     || Stoplist.Contains(token.Name)
+                    || UnitsLookup.IsUnit(token.LeafName)
+                    || UnitsLookup.IsUnit(token.Name)
                     || token.Name.Length < MinIdentifierLength;
         var result = !rejected && ShouldKeep(token, likelySet, corpus);
         return result;
@@ -119,8 +121,24 @@ public class SymbolExtractor
     private bool IsProseFrequent(string identifier, CorpusContext corpus)
     {
         bool result = false;
-        if (corpus.ProseMentionCounts.TryGetValue(identifier, out var count))
+        if (!IsLikelyAbbreviation(identifier)
+            && corpus.ProseMentionCounts.TryGetValue(identifier, out var count))
             result = count >= mProseMentionThreshold;
+        return result;
+    }
+
+    /// <summary>
+    ///     All-uppercase tokens of length &lt;= ShortAbbreviationMaxLength are
+    ///     more likely to be acronyms or abbreviations than symbols (RAM, BD,
+    ///     PC, NET, TCP, UTF). They are NOT admissible via the prose-frequent
+    ///     rule alone — they need a stronger signal (likely-symbols list,
+    ///     code-fence appearance, declared form, callable shape).
+    /// </summary>
+    private static bool IsLikelyAbbreviation(string identifier)
+    {
+        var hasContent = !string.IsNullOrEmpty(identifier);
+        var allUpperOrDigit = hasContent && identifier.All(c => char.IsUpper(c) || char.IsDigit(c));
+        var result = allUpperOrDigit && identifier.Length <= ShortAbbreviationMaxLength;
         return result;
     }
 
@@ -134,11 +152,31 @@ public class SymbolExtractor
         return result;
     }
 
+    /// <summary>
+    ///     True when name contains a real camelCase boundary: either a
+    ///     lowercase-then-uppercase transition (the "x|Y" boundary in
+    ///     MoveLinear), or an uppercase-cluster followed by a lowercase
+    ///     cluster (the "XX|Yzz" boundary in PIDController, XMLParser,
+    ///     IOError). All-uppercase tokens (IMPORTANT, RAM, BD, CPU) and
+    ///     unit-style suffixes (GHz, MHz, kHz) do NOT have a camelCase
+    ///     boundary and return false.
+    /// </summary>
     private static bool HasMidWordCapital(string name)
     {
         bool found = false;
         for (int i = 1; i < name.Length && !found; i++)
-            found = char.IsUpper(name[i]) && char.IsLetter(name[i - 1]);
+        {
+            var prev = name[i - 1];
+            var curr = name[i];
+            var lowerToUpper = char.IsLower(prev) && char.IsUpper(curr);
+            var acronymThenLowerCluster = i >= 2
+                                       && char.IsUpper(name[i - 2])
+                                       && char.IsUpper(prev)
+                                       && char.IsLower(curr)
+                                       && i + 1 < name.Length
+                                       && char.IsLower(name[i + 1]);
+            found = lowerToUpper || acronymThenLowerCluster;
+        }
         return found;
     }
 
@@ -274,6 +312,7 @@ public class SymbolExtractor
 
     private const int DefaultProseMentionThreshold = 3;
     private const int MinIdentifierLength = 2;
+    private const int ShortAbbreviationMaxLength = 4;
 
     private const char Underscore = '_';
     private const char Dot = '.';
