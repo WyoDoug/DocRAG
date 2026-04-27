@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-27
 **Status:** Draft
-**Scope:** Make the DocRAG MCP tool surface usable by a fresh LLM consumer — fix cold-start dead ends, add visibility into library health, expose rename/delete, consolidate the two scrape tools, and surface "this URL probably isn't docs" via the existing recon delegation pattern.
+**Scope:** Make the DocRAG MCP tool surface usable by a fresh LLM consumer — fix cold-start dead ends, add visibility into library health, expose rename/delete/cancel, consolidate the two scrape tools, and surface "this URL probably isn't docs" via the existing recon delegation pattern.
 
 ---
 
@@ -23,7 +23,7 @@ The goal of this branch is to fix all six in one focused tool-surface pass witho
 
 ## Solution
 
-Five new tools, five modified tools, one ingestion-side detector, one new `LibraryVersion` field. The work splits into five tracks that share data model touch-points but are otherwise independent and can be implemented in parallel.
+Six new tools, six modified tools, one ingestion-side detector, two new `LibraryVersion` fields, two new `ScrapeJob` fields. The work splits into six tracks that share data model touch-points but are otherwise independent and can be implemented in parallel.
 
 ### Track A — Cold-start entry points
 
@@ -159,6 +159,36 @@ hint: null | "rechunk_library may help"      (5% ≤ pct < 10%)
 
 The same hint logic surfaces inside `get_library_health.SuggestedAction`.
 
+### Track F — Job cancellation
+
+The Apr 14 orphan job (`Running` for two weeks with no progress) and the in-flight `mongodb.driver` 26K-page runaway scrape are concrete evidence that "stop a scrape" is a real need, not a future luxury.
+
+**New tool: `cancel_scrape(jobId)`**
+
+Marks a `ScrapeJob` as `Cancelled`. Behavior depends on job state:
+
+- **`Running` with active runner** — signals the pipeline `CancellationTokenSource`. Stages drain naturally; job moves to `Cancelled` once the pipeline observes the cancellation.
+- **`Running` orphaned** — runner has no `CancellationTokenSource` registered for this jobId (process restarted while job was active). Updates the DB row to `Cancelled` directly with no signal.
+- **`Completed` / `Failed` / `Cancelled`** — returns `Status: AlreadyTerminal` with a note. No-op.
+- **Job not found** — returns `Status: NotFound`.
+
+Partial results (chunks/pages already ingested before cancellation) are **kept**. To clear them, the caller uses `delete_version` after cancellation (or `submit_url_correction` if the cancel was triggered by a wrong URL — that tool clears partial results as part of its existing flow).
+
+**`ScrapeJobRunner` change.** Maintain `IDictionary<string, CancellationTokenSource>` keyed by `jobId` for active jobs. Add `CancelAsync(string jobId, CancellationToken ct)` that signals the registered CTS or, if absent, marks the DB row directly. Entries are removed when the job completes (CTS disposed).
+
+**Modified: `start_ingest`** — `IN_PROGRESS` state response includes `cancel_scrape` as an alternative `nextTool` alongside `get_scrape_status`. Calling LLM picks: poll, or cancel and start over.
+
+**Modified: `get_dashboard_index`** — entries in `RecentJobs` carry a `Stale: true` flag for `Running` jobs whose `LastProgressAt` is older than 4 hours. Detector: any forward motion in `PagesFetched` / `PagesCompleted` / `ChunksGenerated` / `ChunksEmbedded` updates `LastProgressAt`. The dashboard's `SuggestedNextAction` for stale-running jobs is `cancel_scrape`.
+
+**`ScrapeJob` data model.** Two new fields:
+
+```
+LastProgressAt: DateTime?      (updated when any pipeline counter increments)
+CancelledAt: DateTime?         (set when transitioning to Cancelled)
+```
+
+Plus a new enum value: `ScrapeJobStatus.Cancelled = 4` and matching `PipelineState = "Cancelled"`.
+
 ---
 
 ## Data Model Changes
@@ -237,13 +267,14 @@ Server: { ChunksProcessed: 800, BoundaryIssueCount: 41, BoundaryIssuePct: 5.1, B
 
 ## Implementation Order
 
-The five tracks share data-model surface but are otherwise independent. Suggested order for the plan:
+The six tracks share data-model surface but are otherwise independent. Suggested order for the plan:
 
-1. **Track C — Mutations.** Smallest, most isolated. Repository cascade methods + three tools. Lays the groundwork for `submit_url_correction` to reuse the cascade plumbing.
-2. **Track D — Scrape consolidation.** Touches one tool, one description, one `start_ingest` arg. Fast win, no data-model change.
-3. **Track B — `get_library_health`.** New repo aggregation methods + one tool. Independent of suspect detection (returns `Suspect: false` for everything until Track E lands).
-4. **Track E — URL sanity.** Detector hook in the ingestion pipeline + new state + new tool + `LibraryVersion.Suspect` field. Largest surface but builds on Track C's cascade methods.
-5. **Track A — Cold start.** `get_dashboard_index` aggregates Tracks B and E, so it lands last. `list_libraries` empty hint is a one-line change anywhere in the order.
+1. **Track C — Mutations.** Smallest, most isolated. Repository cascade methods + three tools. Lays the groundwork for `submit_url_correction` and `cancel_scrape`'s partial-result cleanup paths to reuse the cascade plumbing.
+2. **Track F — Cancellation.** `ScrapeJobRunner` CTS registry + `cancel_scrape` tool + `LastProgressAt` tracking + `Cancelled` enum value. Independent of Tracks B/E, but its `IN_PROGRESS`-state addition to `start_ingest` will be picked up by Track E. Lands early so the runaway `mongodb.driver` job can be killed before further integration testing.
+3. **Track D — Scrape consolidation.** Touches one tool, one description, one `start_ingest` arg. Fast win, no data-model change.
+4. **Track B — `get_library_health`.** New repo aggregation methods + one tool. Independent of suspect detection (returns `Suspect: false` for everything until Track E lands).
+5. **Track E — URL sanity.** Detector hook in the ingestion pipeline + new state + new tool + `LibraryVersion.Suspect` field. Largest surface but builds on Track C's cascade methods.
+6. **Track A — Cold start.** `get_dashboard_index` aggregates Tracks B, E, and F (stale-running detection), so it lands last. `list_libraries` empty hint is a one-line change anywhere in the order.
 
 Each track ends with at least one integration test covering the canonical session flow above.
 
@@ -252,12 +283,12 @@ Each track ends with at least one integration test covering the canonical sessio
 ## Out of Scope (explicit)
 
 - **Pre-scrape URL prober.** Decided to lean on recon delegation instead. The calling LLM browses on `URL_SUSPECT`; we don't maintain a doc-host allowlist.
-- **`cancel_scrape` tool.** Real gap, not in original feedback. Defer.
 - **`merge_libraries` tool.** Only useful if rename collisions become common. Defer.
 - **Audit log of mutations.** `ScrapeJobs` retained on delete is sufficient for now.
 - **Recon-from-scraped-pages mode.** Saved for a separate spec.
 - **Job polling / wait-for-job.** Acknowledged out of scope by original feedback.
 - **Soft delete.** Decided against — adds zombie state to every read.
+- **Auto-cancel of stale-running jobs.** `get_dashboard_index` flags them; the LLM (or user) decides. We don't auto-cancel based on `LastProgressAt` age — too easy to kill a legitimately slow scrape.
 
 ---
 
@@ -267,3 +298,5 @@ Each track ends with at least one integration test covering the canonical sessio
 - **Cascade order under failure.** If a delete cascade fails partway (e.g., DB connection lost), the library is in a partial state. Mitigation: idempotent re-run, plus the cascade order leaves `Libraries`/`LibraryVersions` rows for last so the entry remains visible until everything else is gone.
 - **`languageMix` performance.** Computing on-the-fly across all chunks could be slow for huge libraries. Mitigation: `IChunkRepository.GetLanguageMixAsync` runs as a Mongo aggregation with `$group`, not a client-side scan. If still slow, persist as a `LibraryVersion.LanguageMix` field updated by the post-scrape detector.
 - **`get_library_health` vs `get_library_overview` confusion.** Names share a prefix. Mitigation: both descriptions explicitly contrast. `health` description: "Returns diagnostic state (chunk count, language mix, parser drift, suspect markers). For the actual library content, use get_library_overview." `overview` description gets a similar reciprocal note.
+- **Cancel-vs-complete race.** `cancel_scrape` could be called the instant a job is completing. The CTS is about to be disposed; the DB row is about to flip to `Completed`. Mitigation: `CancelAsync` re-reads the job row inside the cancel path; if `Status` is already terminal, returns `AlreadyTerminal` without signalling. Worst case is a benign no-op.
+- **CTS registry leak.** If `ScrapeJobRunner` forgets to remove a `CancellationTokenSource` entry on completion, memory grows. Mitigation: registration uses `try/finally` around the pipeline `await Task.WhenAll(...)`; finally block disposes and removes the entry whether the pipeline completed normally, threw, or was cancelled.
