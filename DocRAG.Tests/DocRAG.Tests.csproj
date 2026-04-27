@@ -28,6 +28,7 @@
   <ItemGroup>
     <ProjectReference Include="..\DocRAG.Core\DocRAG.Core.csproj" />
     <ProjectReference Include="..\DocRAG.Ingestion\DocRAG.Ingestion.csproj" />
+    <ProjectReference Include="..\DocRAG.Mcp\DocRAG.Mcp.csproj" />
   </ItemGroup>
 
   <ItemGroup>
