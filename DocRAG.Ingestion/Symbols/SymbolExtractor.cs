@@ -111,12 +111,20 @@ public class SymbolExtractor
                                                       CorpusContext corpus)
     {
         var leafMatch = Stoplist.Match(token.LeafName, profile);
-        var nameMatch = leafMatch == StoplistMatch.None ? Stoplist.Match(token.Name, profile) : leafMatch;
+        var nameMatch = Stoplist.Match(token.Name, profile);
+        var stopMatch = (leafMatch, nameMatch) switch
+        {
+            (StoplistMatch.Global, _) => StoplistMatch.Global,
+            (_, StoplistMatch.Global) => StoplistMatch.Global,
+            (StoplistMatch.Library, _) => StoplistMatch.Library,
+            (_, StoplistMatch.Library) => StoplistMatch.Library,
+            _ => StoplistMatch.None
+        };
 
         var unitHit = UnitsLookup.IsUnit(token.LeafName) || UnitsLookup.IsUnit(token.Name);
         var belowMin = token.Name.Length < MinIdentifierLength;
 
-        SymbolRejectionReason? result = (nameMatch, unitHit, belowMin) switch
+        SymbolRejectionReason? result = (stopMatch, unitHit, belowMin) switch
         {
             (StoplistMatch.Global, _, _) => SymbolRejectionReason.GlobalStoplist,
             (StoplistMatch.Library, _, _) => SymbolRejectionReason.LibraryStoplist,
