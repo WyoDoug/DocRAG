@@ -45,7 +45,7 @@ public static class Stoplist
         "been", "being", "have", "has", "had", "do", "does", "did", "will",
         "would", "should", "could", "may", "might", "must", "shall", "can",
         "this", "that", "these", "those", "there", "here", "what", "which",
-        "who", "whom", "whose", "why", "how", "all", "any", "some", "no", "not",
+        "who", "whom", "whose", "why", "how", "all", "any", "some", "not",
         "only", "own", "same", "so", "than", "too", "very", "just", "now", "also",
         "before", "after", "above", "below", "during", "each", "every", "both",
         "between", "among", "such", "more", "most", "less", "many", "much", "few",
@@ -56,17 +56,28 @@ public static class Stoplist
         // Programming-prose words that look identifier-shaped at sentence start
         // and that documentation writers heavily capitalize
         "represents", "returns", "values", "value", "use", "uses", "used", "using",
-        "see", "note", "example", "examples", "default", "defaults", "type", "types",
-        "name", "names", "list", "lists", "method", "methods", "function", "functions",
-        "class", "classes", "interface", "interfaces", "object", "objects", "member",
-        "members", "field", "fields", "property", "properties", "parameter", "parameters",
-        "argument", "arguments", "result", "results", "output", "outputs", "input",
-        "inputs", "true", "false", "null", "none", "undefined", "yes", "no",
-        "warning", "warnings", "error", "errors", "exception", "exceptions",
-        "available", "supports", "supported", "requires", "required", "optional",
-        "deprecated", "obsolete", "internal", "private", "public", "protected",
-        "static", "abstract", "virtual", "override", "sealed", "readonly",
-        "lets", "let", "make", "makes", "makes", "set", "sets", "get", "gets",
-        "supports", "supported"
+        "see", "note", "notes", "example", "examples", "default", "defaults",
+        "type", "types", "name", "names", "list", "lists", "method", "methods",
+        "function", "functions", "class", "classes", "interface", "interfaces",
+        "object", "objects", "member", "members", "field", "fields", "property",
+        "properties", "parameter", "parameters", "argument", "arguments", "result",
+        "results", "output", "outputs", "input", "inputs", "true", "false", "null",
+        "none", "undefined", "yes", "no", "warning", "warnings", "error", "errors",
+        "exception", "exceptions", "available", "supports", "supported", "requires",
+        "required", "optional", "deprecated", "obsolete", "internal", "private",
+        "public", "protected", "static", "abstract", "virtual", "override", "sealed",
+        "readonly", "lets", "let", "make", "makes", "set", "sets", "get", "gets",
+
+        // Documentation callout / admonition words. These appear capitalized
+        // (often UPPERCASE) at the head of inline notes — IMPORTANT, CAUTION,
+        // TIP — and tokenize as identifier-shaped. They are never symbols.
+        // (note/warning already covered above.)
+        "important", "caution", "tip", "tips", "info", "danger", "notice",
+        "remark", "remarks",
+
+        // Common UI button / label text that surfaces in scraped help content
+        // (BACK, NEXT, OK, CANCEL etc. as UPPERCASE button labels)
+        "back", "next", "previous", "ok", "cancel", "close", "done", "submit",
+        "menu", "search", "home", "exit", "edit", "view", "save", "open"
     };
 }

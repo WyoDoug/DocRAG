@@ -106,10 +106,9 @@ public class CategoryAwareChunker
             int remaining = content.Length - pos;
             int take = Math.Min(maxChars, remaining);
 
-            // Try to break at sentence boundary
             if (take < remaining)
             {
-                int breakPos = content.LastIndexOfAny(['.', '!', '?', '\n'], pos + take - 1, take);
+                int breakPos = FindSentenceBreak(content, pos, take, maxChars);
                 if (breakPos > pos + (maxChars / 2))
                     take = breakPos - pos + 1;
             }
@@ -119,6 +118,30 @@ public class CategoryAwareChunker
         }
 
         return pieces;
+    }
+
+    /// <summary>
+    ///     Find the latest sentence-end character in <c>[pos, pos+take-1]</c>.
+    ///     A '.' only counts as a sentence end when followed by whitespace
+    ///     or end-of-content — otherwise it could be the dotted-identifier
+    ///     separator in <c>AxisFault.Disabled</c>, splitting the identifier
+    ///     and corrupting the symbol extractor's view of the chunk.
+    ///     '\n', '!', '?' are unconditional sentence ends.
+    /// </summary>
+    private static int FindSentenceBreak(string content, int pos, int take, int maxChars)
+    {
+        var minBreak = pos + (maxChars / 2);
+        var result = -1;
+        for (int j = pos + take - 1; j > minBreak && result < 0; j--)
+        {
+            var c = content[j];
+            var isHardBreak = c == '\n' || c == '!' || c == '?';
+            var isSentencePeriod = c == '.'
+                                && (j + 1 >= content.Length || char.IsWhiteSpace(content[j + 1]));
+            if (isHardBreak || isSentencePeriod)
+                result = j;
+        }
+        return result;
     }
 
     private IReadOnlyList<DocChunk> ChunkAsSample(PageRecord page)
