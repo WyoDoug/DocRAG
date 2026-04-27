@@ -71,9 +71,9 @@
 - [ ] **Step 1.1: Create the enum file**
 
 ```csharp
-// // SymbolRejectionReason.cs
-// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// SymbolRejectionReason.cs
+// Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 namespace DocRAG.Core.Enums;
 
@@ -126,9 +126,9 @@ public enum SymbolRejectionReason
 - [ ] **Step 1.2: Create the ExcludedSymbol record**
 
 ```csharp
-// // ExcludedSymbol.cs
-// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// ExcludedSymbol.cs
+// Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 #region Usings
 
@@ -358,9 +358,9 @@ git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
 - [ ] **Step 3.1: Create the interface**
 
 ```csharp
-// // IExcludedSymbolsRepository.cs
-// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// IExcludedSymbolsRepository.cs
+// Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 #region Usings
 
@@ -453,9 +453,9 @@ git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
 - [ ] **Step 4.1: Create the repository**
 
 ```csharp
-// // ExcludedSymbolsRepository.cs
-// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// ExcludedSymbolsRepository.cs
+// Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 #region Usings
 
@@ -688,9 +688,9 @@ git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
 Create `DocRAG.Tests/Symbols/StoplistTests.cs`:
 
 ```csharp
-// // StoplistTests.cs
-// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// StoplistTests.cs
+// Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 #region Usings
 
@@ -897,9 +897,9 @@ git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
 - [ ] **Step 6.1: Create `RejectedToken`**
 
 ```csharp
-// // RejectedToken.cs
-// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// RejectedToken.cs
+// Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 #region Usings
 
@@ -1355,9 +1355,9 @@ git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
 - [ ] **Step 8.1: Write failing tests**
 
 ```csharp
-// // SampleWindowExtractorTests.cs
-// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// SampleWindowExtractorTests.cs
+// Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 #region Usings
 
@@ -1477,9 +1477,9 @@ Expected: FAIL — `SampleWindowExtractor` doesn't exist.
 - [ ] **Step 8.3: Implement `SampleWindowExtractor`**
 
 ```csharp
-// // SampleWindowExtractor.cs
-// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// SampleWindowExtractor.cs
+// Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 #region Usings
 
@@ -1619,9 +1619,9 @@ git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
 - [ ] **Step 9.1: Write failing tests**
 
 ```csharp
-// // RejectionAccumulatorTests.cs
-// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// RejectionAccumulatorTests.cs
+// Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 #region Usings
 
@@ -1778,9 +1778,9 @@ Expected: FAIL — `RejectionAccumulator` doesn't exist.
 - [ ] **Step 9.3: Implement `RejectionAccumulator`**
 
 ```csharp
-// // RejectionAccumulator.cs
-// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// RejectionAccumulator.cs
+// Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 #region Usings
 
@@ -2861,9 +2861,9 @@ git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
 - [ ] **Step 13.1: Write failing tests**
 
 ```csharp
-// // SymbolManagementToolsTests.cs
-// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// SymbolManagementToolsTests.cs
+// Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 #region Usings
 
@@ -3087,9 +3087,9 @@ Same for `GetExcludedSymbolsRepository`.
 - [ ] **Step 13.4: Implement `SymbolManagementTools`**
 
 ```csharp
-// // SymbolManagementTools.cs
-// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// SymbolManagementTools.cs
+// Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 #region Usings
 
