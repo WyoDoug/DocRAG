@@ -26,12 +26,14 @@ public sealed class RescrubServiceTests
         var chunkRepo = Substitute.For<IChunkRepository>();
         var profileRepo = Substitute.For<ILibraryProfileRepository>();
         var indexRepo = Substitute.For<ILibraryIndexRepository>();
+        var bm25ShardRepo = Substitute.For<IBm25ShardRepository>();
 
         profileRepo.GetAsync("lib", "1.0", Arg.Any<CancellationToken>()).Returns((LibraryProfile?) null);
 
         var result = await service.RescrubAsync(chunkRepo,
                                                 profileRepo,
                                                 indexRepo,
+                                                bm25ShardRepo,
                                                 "lib",
                                                 "1.0",
                                                 new RescrubOptions(),
@@ -49,6 +51,7 @@ public sealed class RescrubServiceTests
         var chunkRepo = Substitute.For<IChunkRepository>();
         var profileRepo = Substitute.For<ILibraryProfileRepository>();
         var indexRepo = Substitute.For<ILibraryIndexRepository>();
+        var bm25ShardRepo = Substitute.For<IBm25ShardRepository>();
 
         profileRepo.GetAsync("lib", "1.0", Arg.Any<CancellationToken>())
                    .Returns(MakeProfile());
@@ -61,6 +64,7 @@ public sealed class RescrubServiceTests
         var result = await service.RescrubAsync(chunkRepo,
                                                 profileRepo,
                                                 indexRepo,
+                                                bm25ShardRepo,
                                                 "lib",
                                                 "1.0",
                                                 options,
@@ -81,6 +85,7 @@ public sealed class RescrubServiceTests
         var chunkRepo = Substitute.For<IChunkRepository>();
         var profileRepo = Substitute.For<ILibraryProfileRepository>();
         var indexRepo = Substitute.For<ILibraryIndexRepository>();
+        var bm25ShardRepo = Substitute.For<IBm25ShardRepository>();
 
         profileRepo.GetAsync("lib", "1.0", Arg.Any<CancellationToken>())
                    .Returns(MakeProfile());
@@ -93,6 +98,7 @@ public sealed class RescrubServiceTests
         var result = await service.RescrubAsync(chunkRepo,
                                                 profileRepo,
                                                 indexRepo,
+                                                bm25ShardRepo,
                                                 "lib",
                                                 "1.0",
                                                 options,
@@ -124,6 +130,7 @@ public sealed class RescrubServiceTests
         var chunkRepo = Substitute.For<IChunkRepository>();
         var profileRepo = Substitute.For<ILibraryProfileRepository>();
         var indexRepo = Substitute.For<ILibraryIndexRepository>();
+        var bm25ShardRepo = Substitute.For<IBm25ShardRepository>();
 
         var profile = MakeProfile();
         profileRepo.GetAsync("lib", "1.0", Arg.Any<CancellationToken>()).Returns(profile);
@@ -153,6 +160,7 @@ public sealed class RescrubServiceTests
         var result = await service.RescrubAsync(chunkRepo,
                                                 profileRepo,
                                                 indexRepo,
+                                                bm25ShardRepo,
                                                 "lib",
                                                 "1.0",
                                                 new RescrubOptions(),

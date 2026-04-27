@@ -27,9 +27,12 @@ public record LibraryIndex
     public required string Version { get; init; }
 
     /// <summary>
-    ///     BM25 inverted index for keyword scoring.
+    ///     Inline metadata for BM25 scoring — DocLengths, DocumentCount,
+    ///     AverageDocLength, ShardCount. The actual postings live in the
+    ///     sharded <c>bm25Shards</c> collection; load via
+    ///     <c>IBm25ShardRepository</c>.
     /// </summary>
-    public Bm25Index Bm25 { get; init; } = new();
+    public Bm25Stats Bm25 { get; init; } = new();
 
     /// <summary>
     ///     Set of every identifier-shaped token appearing inside any code

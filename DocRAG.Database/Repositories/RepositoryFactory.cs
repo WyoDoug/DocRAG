@@ -87,12 +87,24 @@ public class RepositoryFactory
 
     /// <summary>
     ///     Get a library-index repository for the specified database profile.
-    ///     Stores BM25 + CodeFenceSymbols + Manifest per (library, version).
+    ///     Stores BM25 stats + CodeFenceSymbols + Manifest per (library, version).
     /// </summary>
     public ILibraryIndexRepository GetLibraryIndexRepository(string? profile = null)
     {
         var context = mContextFactory.GetForProfile(profile);
         var result = new LibraryIndexRepository(context);
+        return result;
+    }
+
+    /// <summary>
+    ///     Get a BM25 shard repository for the specified database profile.
+    ///     Stores per-shard postings with per-term and per-shard GridFS
+    ///     spill for any payload exceeding the inline 16MB Mongo limit.
+    /// </summary>
+    public IBm25ShardRepository GetBm25ShardRepository(string? profile = null)
+    {
+        var context = mContextFactory.GetForProfile(profile);
+        var result = new Bm25ShardRepository(context);
         return result;
     }
 }

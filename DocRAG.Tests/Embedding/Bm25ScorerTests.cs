@@ -15,17 +15,18 @@ namespace DocRAG.Tests.Embedding;
 public sealed class Bm25ScorerTests
 {
     [Fact]
-    public void EmptyIndexProducesEmptyScores()
+    public async Task EmptyIndexProducesEmptyScores()
     {
-        var index = new Bm25Index();
+        var build = Bm25IndexBuilder.Build("lib", "1.0", []);
+        var lookup = new InMemoryBm25TermLookup(build);
 
-        var scores = Bm25Scorer.Score(index, "anything");
+        var scores = await Bm25Scorer.ScoreAsync(lookup, build.Stats, "anything");
 
         Assert.Empty(scores);
     }
 
     [Fact]
-    public void IdentifierQueryHitsChunksContainingIdentifier()
+    public async Task IdentifierQueryHitsChunksContainingIdentifier()
     {
         var chunks = new[]
         {
@@ -34,17 +35,18 @@ public sealed class Bm25ScorerTests
             MakeChunk("c", "MoveLinear parameters control velocity.")
         };
 
-        var index = Bm25IndexBuilder.Build(chunks);
-        var scores = Bm25Scorer.Score(index, "MoveLinear");
+        var build = Bm25IndexBuilder.Build("lib", "1.0", chunks);
+        var lookup = new InMemoryBm25TermLookup(build);
+        var scores = await Bm25Scorer.ScoreAsync(lookup, build.Stats, "MoveLinear");
 
         Assert.Equal(2, scores.Count);
-        Assert.Contains("a", (System.Collections.Generic.IDictionary<string, double>) scores);
-        Assert.Contains("c", (System.Collections.Generic.IDictionary<string, double>) scores);
-        Assert.DoesNotContain("b", (System.Collections.Generic.IDictionary<string, double>) scores);
+        Assert.True(scores.ContainsKey("a"));
+        Assert.True(scores.ContainsKey("c"));
+        Assert.False(scores.ContainsKey("b"));
     }
 
     [Fact]
-    public void ProseQueryMatchesLowercasedTokens()
+    public async Task ProseQueryMatchesLowercasedTokens()
     {
         var chunks = new[]
         {
@@ -52,15 +54,16 @@ public sealed class Bm25ScorerTests
             MakeChunk("b", "Configure encoder feedback.")
         };
 
-        var index = Bm25IndexBuilder.Build(chunks);
-        var scores = Bm25Scorer.Score(index, "homing configuration");
+        var build = Bm25IndexBuilder.Build("lib", "1.0", chunks);
+        var lookup = new InMemoryBm25TermLookup(build);
+        var scores = await Bm25Scorer.ScoreAsync(lookup, build.Stats, "homing configuration");
 
         Assert.NotEmpty(scores);
         Assert.True(scores["a"] > scores.GetValueOrDefault("b", 0.0));
     }
 
     [Fact]
-    public void TopNReturnsHighestScoringChunksInOrder()
+    public async Task TopNReturnsHighestScoringChunksInOrder()
     {
         var chunks = new[]
         {
@@ -69,16 +72,16 @@ public sealed class Bm25ScorerTests
             MakeChunk("c", "MoveLinear MoveLinear MoveLinear three times.")
         };
 
-        var index = Bm25IndexBuilder.Build(chunks);
-        var topTwo = Bm25Scorer.TopN(index, "MoveLinear", n: 2);
+        var build = Bm25IndexBuilder.Build("lib", "1.0", chunks);
+        var lookup = new InMemoryBm25TermLookup(build);
+        var topTwo = await Bm25Scorer.TopNAsync(lookup, build.Stats, "MoveLinear", n: 2);
 
         Assert.Equal(2, topTwo.Count);
-        // The top result should be one with the most occurrences.
         Assert.Contains(topTwo, t => t.ChunkId == "c");
     }
 
     [Fact]
-    public void DottedIdentifierQueryMatchesDottedIdentifier()
+    public async Task DottedIdentifierQueryMatchesDottedIdentifier()
     {
         var chunks = new[]
         {
@@ -86,8 +89,9 @@ public sealed class Bm25ScorerTests
             MakeChunk("b", "Other unrelated content here.")
         };
 
-        var index = Bm25IndexBuilder.Build(chunks);
-        var scores = Bm25Scorer.Score(index, "AxisFault.Disabled");
+        var build = Bm25IndexBuilder.Build("lib", "1.0", chunks);
+        var lookup = new InMemoryBm25TermLookup(build);
+        var scores = await Bm25Scorer.ScoreAsync(lookup, build.Stats, "AxisFault.Disabled");
 
         Assert.NotEmpty(scores);
         Assert.True(scores.ContainsKey("a"));
@@ -95,13 +99,13 @@ public sealed class Bm25ScorerTests
 
     private static DocChunk MakeChunk(string id, string content) =>
         new()
-            {
-                Id = id,
-                LibraryId = "lib",
-                Version = "1.0",
-                PageUrl = "https://example.com",
-                PageTitle = "Page",
-                Category = DocCategory.ApiReference,
-                Content = content
-            };
+        {
+            Id = id,
+            LibraryId = "lib",
+            Version = "1.0",
+            PageUrl = "https://example.com",
+            PageTitle = "Page",
+            Category = DocCategory.ApiReference,
+            Content = content
+        };
 }

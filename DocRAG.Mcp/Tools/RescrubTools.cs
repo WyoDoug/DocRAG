@@ -72,8 +72,17 @@ public static class RescrubTools
         var chunkRepo = repositoryFactory.GetChunkRepository(profile);
         var profileRepo = repositoryFactory.GetLibraryProfileRepository(profile);
         var indexRepo = repositoryFactory.GetLibraryIndexRepository(profile);
+        var bm25ShardRepo = repositoryFactory.GetBm25ShardRepository(profile);
 
-        var result = await service.RescrubAsync(chunkRepo, profileRepo, indexRepo, library, version, options, ct);
+        var result = await service.RescrubAsync(chunkRepo,
+                                                profileRepo,
+                                                indexRepo,
+                                                bm25ShardRepo,
+                                                library,
+                                                version,
+                                                options,
+                                                ct
+                                               );
         var json = JsonSerializer.Serialize(result, smJsonOptions);
         return json;
     }
