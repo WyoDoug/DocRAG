@@ -2,7 +2,28 @@
 // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
 // Use subject to the MIT License.
 
+#region Usings
+
+using DocRAG.Core.Models;
+
+#endregion
+
 namespace DocRAG.Ingestion.Symbols;
+
+/// <summary>
+///     Result of a profile-aware stoplist check.
+/// </summary>
+public enum StoplistMatch
+{
+    /// <summary>Token was not in any stoplist.</summary>
+    None,
+
+    /// <summary>Token matched the universal Stoplist.</summary>
+    Global,
+
+    /// <summary>Token matched LibraryProfile.Stoplist.</summary>
+    Library
+}
 
 /// <summary>
 ///     Backup filter for the symbol extractor. Words matching the stoplist
@@ -29,6 +50,29 @@ public static class Stoplist
 
         var key = candidate.ToLowerInvariant();
         var result = smStopwords.Contains(key);
+        return result;
+    }
+
+    /// <summary>
+    ///     Profile-aware stoplist check. Returns Global if the candidate is
+    ///     in the universal stoplist, Library if it's in the profile's
+    ///     stoplist (case-insensitive), else None. Global wins when both
+    ///     match — surfaces the more specific diagnostic.
+    /// </summary>
+    public static StoplistMatch Match(string candidate, LibraryProfile profile)
+    {
+        ArgumentNullException.ThrowIfNull(candidate);
+        ArgumentNullException.ThrowIfNull(profile);
+
+        var inGlobal = Contains(candidate);
+        var inLibrary = profile.Stoplist.Contains(candidate, StringComparer.OrdinalIgnoreCase);
+
+        var result = (inGlobal, inLibrary) switch
+        {
+            (true, _) => StoplistMatch.Global,
+            (false, true) => StoplistMatch.Library,
+            _ => StoplistMatch.None
+        };
         return result;
     }
 
