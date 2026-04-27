@@ -1,6 +1,6 @@
-// // Stoplist.cs
-// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// Stoplist.cs
+// Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 namespace DocRAG.Ingestion.Symbols;
 

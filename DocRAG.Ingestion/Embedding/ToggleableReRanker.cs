@@ -1,6 +1,6 @@
-// // ToggleableReRanker.cs
-// // Copyright (c) 2012-Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// ToggleableReRanker.cs
+// Copyright (c) 2012-Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 #region Usings
 

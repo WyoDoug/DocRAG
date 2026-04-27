@@ -1,6 +1,6 @@
-// // IEmbeddingService.cs
-// // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
-// // Use subject to the MIT License.
+// IEmbeddingService.cs
+// Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
+// Use subject to the MIT License.
 
 #pragma warning disable STR0010 // Interface methods cannot validate parameters
 
