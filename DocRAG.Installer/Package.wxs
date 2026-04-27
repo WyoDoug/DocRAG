@@ -11,6 +11,11 @@
         <MajorUpgrade DowngradeErrorMessage="A newer version of DocRAG is already installed." />
         <MediaTemplate EmbedCab="yes" />
 
+        <!-- Always emit a verbose Windows Installer log so install/repair/upgrade -->
+        <!-- failures are diagnosable without having to remember `msiexec /L*v`. -->
+        <!-- Log lands in %TEMP%\MSI*.log; runtime path is exposed in MsiLogFileLocation. -->
+        <Property Id="MsiLogging" Value="voicewarmupx!" />
+
         <!-- User-configurable properties -->
         <Property Id="MONGOCONNECTION" Value="mongodb://localhost:27017" />
         <Property Id="MONGODATABASE" Value="DocRAG" />
