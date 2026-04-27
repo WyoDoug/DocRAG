@@ -29,6 +29,13 @@ public record ExtractedSymbols
     public string? PrimaryQualifiedName { get; init; }
 
     /// <summary>
+    ///     Tokens the extractor rejected, with their reason. Default empty
+    ///     so callers that don't care about rejections (production read
+    ///     paths, tests pre-dating rejection capture) need no changes.
+    /// </summary>
+    public IReadOnlyList<RejectedToken> Rejected { get; init; } = [];
+
+    /// <summary>
     ///     Empty result. Used when content has no surviving candidates.
     /// </summary>
     public static ExtractedSymbols Empty { get; } = new()
