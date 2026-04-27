@@ -193,6 +193,9 @@ builder.Services.AddSingleton<DocRAG.Ingestion.Symbols.SymbolExtractor>();
 // Rescrub service (consumed by rescrub_library MCP tool)
 builder.Services.AddSingleton<DocRAG.Ingestion.Recon.RescrubService>();
 
+// Rechunk service (consumed by rechunk_library MCP tool)
+builder.Services.AddSingleton<DocRAG.Ingestion.Recon.RechunkService>();
+
 
 
 // Ingestion pipeline (so MCP can scrape on demand)
