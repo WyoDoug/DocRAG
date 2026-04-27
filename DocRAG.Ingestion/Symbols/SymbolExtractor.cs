@@ -62,15 +62,29 @@ public class SymbolExtractor
         var likelySet = BuildLikelySet(profile);
 
         var kept = new List<Symbol>();
+        var rejected = new List<RejectedToken>();
         var seenNames = new HashSet<string>(StringComparer.Ordinal);
+        var seenRejected = new HashSet<string>(StringComparer.Ordinal);
 
-        foreach(var token in tokens.Where(t => IsAdmissible(t, likelySet, corpus)))
+        foreach(var token in tokens)
         {
-            var symbol = Classify(token, likelySet, profile);
-            if (!seenNames.Contains(symbol.Name))
+            var reason = GetRejectionReason(token, profile, likelySet, corpus);
+            if (reason.HasValue)
             {
-                seenNames.Add(symbol.Name);
-                kept.Add(symbol);
+                if (!seenRejected.Contains(token.Name))
+                {
+                    seenRejected.Add(token.Name);
+                    rejected.Add(new RejectedToken { Name = token.Name, Reason = reason.Value });
+                }
+            }
+            else
+            {
+                var symbol = Classify(token, likelySet, profile);
+                if (!seenNames.Contains(symbol.Name))
+                {
+                    seenNames.Add(symbol.Name);
+                    kept.Add(symbol);
+                }
             }
         }
 
@@ -78,25 +92,44 @@ public class SymbolExtractor
         var result = new ExtractedSymbols
                          {
                              Symbols = kept,
-                             PrimaryQualifiedName = primary
+                             PrimaryQualifiedName = primary,
+                             Rejected = rejected
                          };
         return result;
     }
 
-    private bool IsAdmissible(TokenCandidate token, HashSet<string> likelySet, CorpusContext corpus)
+    /// <summary>
+    ///     Return the rejection reason for this token, or null if it is
+    ///     admissible. Resolution order matches the original IsAdmissible:
+    ///     stoplist -> unit -> min-length -> keep-rule failure (with
+    ///     LikelyAbbreviation as a sub-reason of the prose-frequent path
+    ///     when applicable).
+    /// </summary>
+    private SymbolRejectionReason? GetRejectionReason(TokenCandidate token,
+                                                      LibraryProfile profile,
+                                                      HashSet<string> likelySet,
+                                                      CorpusContext corpus)
     {
-        var rejected = Stoplist.Contains(token.LeafName)
-                    || Stoplist.Contains(token.Name)
-                    || UnitsLookup.IsUnit(token.LeafName)
-                    || UnitsLookup.IsUnit(token.Name)
-                    || token.Name.Length < MinIdentifierLength;
-        var result = !rejected && ShouldKeep(token, likelySet, corpus);
+        var leafMatch = Stoplist.Match(token.LeafName, profile);
+        var nameMatch = leafMatch == StoplistMatch.None ? Stoplist.Match(token.Name, profile) : leafMatch;
+
+        var unitHit = UnitsLookup.IsUnit(token.LeafName) || UnitsLookup.IsUnit(token.Name);
+        var belowMin = token.Name.Length < MinIdentifierLength;
+
+        SymbolRejectionReason? result = (nameMatch, unitHit, belowMin) switch
+        {
+            (StoplistMatch.Global, _, _) => SymbolRejectionReason.GlobalStoplist,
+            (StoplistMatch.Library, _, _) => SymbolRejectionReason.LibraryStoplist,
+            (StoplistMatch.None, true, _) => SymbolRejectionReason.Unit,
+            (StoplistMatch.None, false, true) => SymbolRejectionReason.BelowMinLength,
+            _ => ResolveKeepRuleReason(token, likelySet, corpus)
+        };
         return result;
     }
 
-    private bool ShouldKeep(TokenCandidate token,
-                            HashSet<string> likelySet,
-                            CorpusContext corpus)
+    private SymbolRejectionReason? ResolveKeepRuleReason(TokenCandidate token,
+                                                          HashSet<string> likelySet,
+                                                          CorpusContext corpus)
     {
         var name = token.Name;
         var leaf = token.LeafName;
@@ -105,26 +138,63 @@ public class SymbolExtractor
         bool inCodeFence = corpus.CodeFenceSymbols.Contains(name) || corpus.CodeFenceSymbols.Contains(leaf);
         bool hasContainer = !string.IsNullOrEmpty(token.Container);
         bool hasInternalStructure = HasInternalStructure(name);
-        bool proseFrequent = IsProseFrequent(name, corpus) || IsProseFrequent(leaf, corpus);
+        var proseState = ResolveProseFrequent(name, leaf, corpus);
 
-        var result = token.IsDeclared
-                  || inLikely
-                  || inCodeFence
-                  || hasContainer
-                  || hasInternalStructure
-                  || token.HasCallableShape
-                  || token.HasGenericShape
-                  || proseFrequent;
+        bool admissible = token.IsDeclared
+                       || inLikely
+                       || inCodeFence
+                       || hasContainer
+                       || hasInternalStructure
+                       || token.HasCallableShape
+                       || token.HasGenericShape
+                       || proseState == ProseFrequentResult.Frequent;
+
+        SymbolRejectionReason? result;
+        if (admissible)
+            result = null;
+        else
+            result = proseState == ProseFrequentResult.BlockedByAbbreviation
+                         ? SymbolRejectionReason.LikelyAbbreviation
+                         : SymbolRejectionReason.NoStructureSignal;
         return result;
     }
 
-    private bool IsProseFrequent(string identifier, CorpusContext corpus)
+    private ProseFrequentResult ResolveProseFrequent(string name, string leaf, CorpusContext corpus)
     {
-        bool result = false;
-        if (!IsLikelyAbbreviation(identifier)
-            && corpus.ProseMentionCounts.TryGetValue(identifier, out var count))
-            result = count >= mProseMentionThreshold;
+        var nameState = ProseFrequentState(name, corpus);
+        var leafState = ProseFrequentState(leaf, corpus);
+
+        var combined = (nameState, leafState) switch
+        {
+            (ProseFrequentResult.Frequent, _) => ProseFrequentResult.Frequent,
+            (_, ProseFrequentResult.Frequent) => ProseFrequentResult.Frequent,
+            (ProseFrequentResult.BlockedByAbbreviation, _) => ProseFrequentResult.BlockedByAbbreviation,
+            (_, ProseFrequentResult.BlockedByAbbreviation) => ProseFrequentResult.BlockedByAbbreviation,
+            _ => ProseFrequentResult.NotFrequent
+        };
+        return combined;
+    }
+
+    private ProseFrequentResult ProseFrequentState(string identifier, CorpusContext corpus)
+    {
+        var hasMentions = corpus.ProseMentionCounts.TryGetValue(identifier, out var count);
+        var aboveThreshold = hasMentions && count >= mProseMentionThreshold;
+        var abbreviation = IsLikelyAbbreviation(identifier);
+
+        var result = (aboveThreshold, abbreviation) switch
+        {
+            (true, false) => ProseFrequentResult.Frequent,
+            (true, true) => ProseFrequentResult.BlockedByAbbreviation,
+            _ => ProseFrequentResult.NotFrequent
+        };
         return result;
+    }
+
+    private enum ProseFrequentResult
+    {
+        NotFrequent,
+        Frequent,
+        BlockedByAbbreviation
     }
 
     /// <summary>
