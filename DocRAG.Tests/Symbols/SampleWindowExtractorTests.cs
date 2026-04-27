@@ -40,12 +40,17 @@ public sealed class SampleWindowExtractorTests
     [Fact]
     public void TrimsToWordBoundaries()
     {
-        var content = "averylongprefixwordbeforethetoken Symbol thenanotherverylongsuffixword";
+        // Long prefix so the window's left edge falls inside actual content
+        // (not pinned to position 0). The edge should sit at a space, so
+        // the sample starts with a complete "prefixNN" word, not a partial
+        // fragment like "fix37".
+        var prefix = string.Join(" ", Enumerable.Range(0, 50).Select(i => $"prefix{i:D2}"));
+        var content = $"{prefix} Symbol suffix";
 
         var sample = SampleWindowExtractor.Extract(content, "Symbol");
 
         Assert.NotNull(sample);
-        Assert.DoesNotContain("averylongprefixwordbefore", sample);
+        Assert.Matches(@"^prefix\d{2}", sample);
     }
 
     [Fact]
