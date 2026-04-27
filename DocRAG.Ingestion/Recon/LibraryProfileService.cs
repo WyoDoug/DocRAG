@@ -93,7 +93,9 @@ public class LibraryProfileService
     ///     Compute a stable hash of the profile's content for manifest
     ///     tracking. Hash deliberately excludes CreatedUtc and Source so
     ///     two profiles with identical structural content but different
-    ///     metadata produce the same hash.
+    ///     metadata produce the same hash. Also excludes Stoplist — it is
+    ///     user-curated state, and changes to it should not trigger
+    ///     reclassification (which is what manifest-hash drift drives).
     /// </summary>
     public static string ComputeHash(LibraryProfile profile)
     {

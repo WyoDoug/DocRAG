@@ -37,8 +37,9 @@ public interface IExcludedSymbolsRepository
 
     /// <summary>
     ///     Remove rejections for (libraryId, version) whose Name matches any
-    ///     entry in names (Ordinal compare). Idempotent — names not present
-    ///     are silently ignored.
+    ///     entry in names (case-insensitive — aligns with the per-library
+    ///     Stoplist contract that treats "foo" / "Foo" / "FOO" as equivalent).
+    ///     Idempotent — names not present are silently ignored.
     /// </summary>
     Task RemoveAsync(string libraryId,
                      string version,

@@ -85,7 +85,15 @@ public class ExcludedSymbolsRepository : IExcludedSymbolsRepository
                 Builders<ExcludedSymbol>.Filter.Eq(e => e.Version, version),
                 Builders<ExcludedSymbol>.Filter.In(e => e.Name, nameList)
             );
-            await mContext.ExcludedSymbols.DeleteManyAsync(filter, ct);
+            // Case-insensitive Name match: aligns with the per-library Stoplist
+            // contract ("foo" demotion blocks "Foo" / "FOO"). Without this, an
+            // LLM that passed "foo" but the extractor stored "Foo" would leave
+            // a stale excluded entry until the next rescrub.
+            var options = new DeleteOptions
+                              {
+                                  Collation = new Collation("en", strength: CollationStrength.Secondary)
+                              };
+            await mContext.ExcludedSymbols.DeleteManyAsync(filter, options, ct);
         }
     }
 
