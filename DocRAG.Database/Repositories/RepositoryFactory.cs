@@ -78,7 +78,7 @@ public class RepositoryFactory
     ///     Get a library-profile repository for the specified database profile.
     ///     Stores the per-(library, version) reconnaissance results.
     /// </summary>
-    public ILibraryProfileRepository GetLibraryProfileRepository(string? profile = null)
+    public virtual ILibraryProfileRepository GetLibraryProfileRepository(string? profile = null)
     {
         var context = mContextFactory.GetForProfile(profile);
         var result = new LibraryProfileRepository(context);
