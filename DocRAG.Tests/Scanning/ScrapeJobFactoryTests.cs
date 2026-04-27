@@ -130,6 +130,22 @@ public sealed class ScrapeJobFactoryTests
         Assert.Equal(TestVersion, job.Version);
     }
 
+    [Fact]
+    public void CreateFromUrlForceCleanDefaultsToFalse()
+    {
+        var job = ScrapeJobFactory.CreateFromUrl(TestUrl, TestLibraryId, TestVersion);
+
+        Assert.False(job.ForceClean);
+    }
+
+    [Fact]
+    public void CreateFromUrlForceCleanTrueSetsField()
+    {
+        var job = ScrapeJobFactory.CreateFromUrl(TestUrl, TestLibraryId, TestVersion, forceClean: true);
+
+        Assert.True(job.ForceClean);
+    }
+
     private const string TestUrl = "https://docs.example.com/api/v2/";
     private const string TestLibraryId = "example-lib";
     private const string TestVersion = "3.1.0";
