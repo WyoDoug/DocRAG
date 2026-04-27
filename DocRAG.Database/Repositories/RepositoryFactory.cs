@@ -107,4 +107,16 @@ public class RepositoryFactory
         var result = new Bm25ShardRepository(context);
         return result;
     }
+
+    /// <summary>
+    ///     Get an excluded-symbols repository for the specified database
+    ///     profile. Stores per-(library, version) extractor rejections
+    ///     captured during rescrub.
+    /// </summary>
+    public virtual IExcludedSymbolsRepository GetExcludedSymbolsRepository(string? profile = null)
+    {
+        var context = mContextFactory.GetForProfile(profile);
+        var result = new ExcludedSymbolsRepository(context);
+        return result;
+    }
 }

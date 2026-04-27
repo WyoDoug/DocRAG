@@ -55,6 +55,9 @@ public class DocRagDbContext
     public IMongoCollection<Bm25Shard> Bm25Shards =>
         mDatabase.GetCollection<Bm25Shard>(CollectionBm25Shards);
 
+    public IMongoCollection<ExcludedSymbol> ExcludedSymbols =>
+        mDatabase.GetCollection<ExcludedSymbol>(CollectionExcludedSymbols);
+
     /// <summary>
     ///     GridFS bucket for spilled BM25 payloads (per-term postings or
     ///     entire shards) that exceed the inline 16MB Mongo document
@@ -136,6 +139,25 @@ public class DocRagDbContext
                                                                                ),
                                                 cancellationToken: ct
                                                );
+
+        // ExcludedSymbols: compound on (LibraryId, Version, Reason) for the
+        // list_excluded_symbols reason filter, plus (LibraryId, Version, Name)
+        // for fast remove-by-name when the LLM promotes/demotes tokens.
+        var excludedKeys = Builders<ExcludedSymbol>.IndexKeys;
+        await ExcludedSymbols.Indexes.CreateOneAsync(new CreateIndexModel<ExcludedSymbol>(excludedKeys.Combine(excludedKeys.Ascending(e => e.LibraryId),
+                                                                                                                excludedKeys.Ascending(e => e.Version),
+                                                                                                                excludedKeys.Ascending(e => e.Reason)
+                                                                                                               )
+                                                                                          ),
+                                                     cancellationToken: ct
+                                                    );
+        await ExcludedSymbols.Indexes.CreateOneAsync(new CreateIndexModel<ExcludedSymbol>(excludedKeys.Combine(excludedKeys.Ascending(e => e.LibraryId),
+                                                                                                                excludedKeys.Ascending(e => e.Version),
+                                                                                                                excludedKeys.Ascending(e => e.Name)
+                                                                                                               )
+                                                                                          ),
+                                                     cancellationToken: ct
+                                                    );
     }
 
     private const string CollectionLibraries = "libraries";
@@ -148,5 +170,6 @@ public class DocRagDbContext
     private const string CollectionLibraryProfiles = "libraryProfiles";
     private const string CollectionLibraryIndexes = "libraryIndexes";
     private const string CollectionBm25Shards = "bm25Shards";
+    private const string CollectionExcludedSymbols = "library_excluded_symbols";
     private const string Bm25BucketName = "bm25";
 }
