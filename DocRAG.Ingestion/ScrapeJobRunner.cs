@@ -55,7 +55,7 @@ public class ScrapeJobRunner : IScrapeJobQueue
     ///     Queue a job and kick off background execution.
     ///     Returns the job id immediately.
     /// </summary>
-    public async Task<string> QueueAsync(ScrapeJob job, string? profile = null, CancellationToken ct = default)
+    public virtual async Task<string> QueueAsync(ScrapeJob job, string? profile = null, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(job);
 
