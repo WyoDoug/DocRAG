@@ -124,7 +124,7 @@ public sealed class ShardedBm25TermLookupTests
         public Task ReplaceShardsAsync(string libraryId, string version, IReadOnlyList<Bm25Shard> shards, CancellationToken ct = default) =>
             Task.CompletedTask;
 
-        public Task<long> DeleteShardsAsync(string libraryId, string version, CancellationToken ct = default) =>
+        public Task<long> DeleteAsync(string libraryId, string version, CancellationToken ct = default) =>
             Task.FromResult(0L);
     }
 }

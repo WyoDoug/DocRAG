@@ -54,7 +54,7 @@ public class Bm25ShardRepository : IBm25ShardRepository
         ArgumentException.ThrowIfNullOrEmpty(version);
         ArgumentNullException.ThrowIfNull(shards);
 
-        await DeleteShardsAsync(libraryId, version, ct);
+        await DeleteAsync(libraryId, version, ct);
 
         if (shards.Count > 0)
         {
@@ -140,9 +140,9 @@ public class Bm25ShardRepository : IBm25ShardRepository
     }
 
     /// <inheritdoc />
-    public async Task<long> DeleteShardsAsync(string libraryId,
-                                              string version,
-                                              CancellationToken ct = default)
+    public async Task<long> DeleteAsync(string libraryId,
+                                        string version,
+                                        CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(libraryId);
         ArgumentException.ThrowIfNullOrEmpty(version);

@@ -71,7 +71,7 @@ public interface IBm25ShardRepository
     ///     version). Used when a library version is removed entirely.
     ///     Returns the count of deleted shard documents.
     /// </summary>
-    Task<long> DeleteShardsAsync(string libraryId,
-                                 string version,
-                                 CancellationToken ct = default);
+    Task<long> DeleteAsync(string libraryId,
+                           string version,
+                           CancellationToken ct = default);
 }
