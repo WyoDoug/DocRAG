@@ -87,9 +87,29 @@ public static class RescrubTools
                                                 options,
                                                 ct
                                                );
-        var json = JsonSerializer.Serialize(result, smJsonOptions);
+        double pct = result.Processed > 0 ? 100.0 * result.BoundaryIssues / result.Processed : 0.0;
+        string? hint = ResolveBoundaryHint(pct);
+
+        var responseWithHint = new
+                                   {
+                                       Result = result,
+                                       BoundaryHint = new { pct, hint }
+                                   };
+        var json = JsonSerializer.Serialize(responseWithHint, smJsonOptions);
         return json;
     }
 
+    private static string? ResolveBoundaryHint(double pct) => pct switch
+    {
+        >= BoundaryHintRecommendThreshold => BoundaryHintRecommend,
+        >= BoundaryHintMayHelpThreshold => BoundaryHintMayHelp,
+        _ => null
+    };
+
     private static readonly JsonSerializerOptions smJsonOptions = new() { WriteIndented = true };
+
+    private const double BoundaryHintMayHelpThreshold = 5.0;
+    private const double BoundaryHintRecommendThreshold = 10.0;
+    private const string BoundaryHintMayHelp = "rechunk_library may help";
+    private const string BoundaryHintRecommend = "rechunk_library recommended";
 }

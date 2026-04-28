@@ -95,18 +95,34 @@ public static class ScrapeDocsTools
             }
             else
             {
-                jobToQueue = new ScrapeJob
-                                 {
-                                     RootUrl = url ?? previous.Job.RootUrl,
-                                     LibraryId = libraryId,
-                                     Version = version,
-                                     LibraryHint = hint ?? previous.Job.LibraryHint,
-                                     AllowedUrlPatterns = allowedUrlPatterns ?? previous.Job.AllowedUrlPatterns,
-                                     ExcludedUrlPatterns = excludedUrlPatterns ?? previous.Job.ExcludedUrlPatterns,
-                                     MaxPages = maxPages,
-                                     FetchDelayMs = fetchDelayMs,
-                                     ForceClean = force
-                                 };
+                var versionRecord = await libraryRepo.GetVersionAsync(libraryId, version, ct);
+                if (versionRecord != null && versionRecord.Suspect)
+                {
+                    var refused = new
+                                      {
+                                          Status = StatusRefused,
+                                          Reason = ReasonUrlSuspect,
+                                          SuspectReasons = versionRecord.SuspectReasons,
+                                          Hint = "Call submit_url_correction(library, version, newUrl) with a corrected URL."
+                                      };
+                    json = JsonSerializer.Serialize(refused, new JsonSerializerOptions { WriteIndented = true });
+                    earlyResponseEmitted = true;
+                }
+                else
+                {
+                    jobToQueue = new ScrapeJob
+                                     {
+                                         RootUrl = url ?? previous.Job.RootUrl,
+                                         LibraryId = libraryId,
+                                         Version = version,
+                                         LibraryHint = hint ?? previous.Job.LibraryHint,
+                                         AllowedUrlPatterns = allowedUrlPatterns ?? previous.Job.AllowedUrlPatterns,
+                                         ExcludedUrlPatterns = excludedUrlPatterns ?? previous.Job.ExcludedUrlPatterns,
+                                         MaxPages = maxPages,
+                                         FetchDelayMs = fetchDelayMs,
+                                         ForceClean = force
+                                     };
+                }
             }
         }
 
@@ -207,5 +223,7 @@ public static class ScrapeDocsTools
 
     private const string StatusAlreadyCached = "AlreadyCached";
     private const string StatusNoPriorJob = "NoPriorJob";
+    private const string StatusRefused = "Refused";
+    private const string ReasonUrlSuspect = "URL_SUSPECT";
     private const int DefaultMaxPages = 0;
 }

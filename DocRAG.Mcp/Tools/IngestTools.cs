@@ -57,6 +57,7 @@ public static class IngestTools
         var profileRepo = repositoryFactory.GetLibraryProfileRepository(profile);
         var chunkRepo = repositoryFactory.GetChunkRepository(profile);
         var scrapeJobRepo = repositoryFactory.GetScrapeJobRepository(profile);
+        var libraryRepo = repositoryFactory.GetLibraryRepository(profile);
 
         var libraryProfile = await profileRepo.GetAsync(library, version, ct);
         var chunkCount = await chunkRepo.GetChunkCountAsync(library, version, ct);
@@ -66,16 +67,22 @@ public static class IngestTools
             stale = await chunkRepo.HasStaleChunksAsync(library, version, ParserVersionInfo.Current, ct);
 
         var activeJob = await scrapeJobRepo.GetActiveJobAsync(library, version, ct);
+        var versionRecord = await libraryRepo.GetVersionAsync(library, version, ct);
 
-        IngestStatusResponse response;
-        if (activeJob != null)
+        bool isInProgress = activeJob != null;
+        bool isSuspect = versionRecord != null && versionRecord.Suspect;
+        string activeJobId = activeJob?.Id ?? string.Empty;
+        IReadOnlyList<string> suspectReasons = versionRecord?.SuspectReasons ?? [];
+
+        IngestStatusResponse? suspectResponse = isSuspect && !isInProgress
+            ? await MakeUrlSuspectAsync(library, version, url, suspectReasons, chunkRepo, ct)
+            : null;
+
+        IngestStatusResponse response = isInProgress switch
         {
-            response = MakeInProgress(library, version, url, activeJob.Id);
-        }
-        else
-        {
-            response = ResolveStatus(libraryProfile, chunkCount, stale, library, version, url, force);
-        }
+            true => MakeInProgress(library, version, url, activeJobId),
+            false => suspectResponse ?? ResolveStatus(libraryProfile, chunkCount, stale, library, version, url, force)
+        };
 
         var json = JsonSerializer.Serialize(response, smJsonOptions);
         return json;
@@ -181,6 +188,41 @@ public static class IngestTools
                 Message = "Profile cached, index built, current parser version. Caller can query."
             };
 
+    private static async Task<IngestStatusResponse> MakeUrlSuspectAsync(string library,
+                                                                         string version,
+                                                                         string url,
+                                                                         IReadOnlyList<string> suspectReasons,
+                                                                         DocRAG.Core.Interfaces.IChunkRepository chunkRepo,
+                                                                         CancellationToken ct)
+    {
+        var sampleTitles = await chunkRepo.GetSampleTitlesAsync(library, version, UrlSuspectSampleTitleLimit, ct);
+        var hostnameDist = await chunkRepo.GetHostnameDistributionAsync(library, version, ct);
+
+        var sampleTitlesJoined = string.Join(SemicolonSeparator, sampleTitles.Take(UrlSuspectSampleTitlesShown));
+        var hostnamesJoined = string.Join(CommaSeparator, hostnameDist.Keys.Take(UrlSuspectHostnamesShown));
+        var reasonsJoined = string.Join(CommaSeparator, suspectReasons);
+
+        var result = new IngestStatusResponse
+                         {
+                             Status = IngestStatus.UrlSuspect,
+                             LibraryId = library,
+                             Version = version,
+                             Url = url,
+                             NextTool = "submit_url_correction",
+                             Message = $"Indexed content looks wrong: {reasonsJoined}. "
+                                     + $"Sample titles: {sampleTitlesJoined}. "
+                                     + $"Hostnames: {hostnamesJoined}. "
+                                     + "Browse the URL and call submit_url_correction with a better one if needed.",
+                             NextToolArgs = new Dictionary<string, string>
+                                               {
+                                                   ["library"] = library,
+                                                   ["version"] = version,
+                                                   ["newUrl"] = "(your corrected URL here)"
+                                               }
+                         };
+        return result;
+    }
+
     private static readonly JsonSerializerOptions smJsonOptions = new() { WriteIndented = true };
 
     private const string MessageReadyToScrapeFresh =
@@ -188,4 +230,10 @@ public static class IngestTools
 
     private const string MessageReadyToScrapeForce =
         "force=true: index exists but caller requested re-ingest. Call scrape_library to refresh.";
+
+    private const int UrlSuspectSampleTitleLimit = 5;
+    private const int UrlSuspectSampleTitlesShown = 3;
+    private const int UrlSuspectHostnamesShown = 5;
+    private const string SemicolonSeparator = "; ";
+    private const string CommaSeparator = ", ";
 }
