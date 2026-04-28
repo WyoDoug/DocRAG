@@ -48,4 +48,11 @@ public interface ILibraryRepository
     ///     CurrentVersion to the next-most-recent version.
     /// </summary>
     Task<DeleteVersionResult> DeleteVersionAsync(string libraryId, string version, CancellationToken ct = default);
+
+    /// <summary>
+    ///     Delete a complete library and all its versions.
+    ///     Iterates through all versions and calls DeleteVersionAsync for each,
+    ///     then ensures the Library row is deleted.
+    /// </summary>
+    Task<long> DeleteAsync(string libraryId, CancellationToken ct = default);
 }
