@@ -82,4 +82,48 @@ public class LibraryRepository : ILibraryRepository
                                                        ct
                                                       );
     }
-}
+
+    /// <inheritdoc />
+    public async Task<DeleteVersionResult> DeleteVersionAsync(string libraryId,
+                                                              string version,
+                                                              CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(libraryId);
+        ArgumentException.ThrowIfNullOrEmpty(version);
+
+        var versionFilter = Builders<LibraryVersionRecord>.Filter.And(
+            Builders<LibraryVersionRecord>.Filter.Eq(v => v.LibraryId, libraryId),
+            Builders<LibraryVersionRecord>.Filter.Eq(v => v.Version, version)
+        );
+        var versionsDeleted = (await mContext.LibraryVersions.DeleteManyAsync(versionFilter, ct)).DeletedCount;
+
+        var remaining = await mContext.LibraryVersions
+                                      .Find(Builders<LibraryVersionRecord>.Filter.Eq(v => v.LibraryId, libraryId))
+                                      .SortByDescending(v => v.ScrapedAt)
+                                      .ToListAsync(ct);
+
+        bool libraryRowDeleted = false;
+        string? repointedTo = null;
+
+        if (remaining.Count == 0)
+        {
+            var libFilter = Builders<LibraryRecord>.Filter.Eq(l => l.Id, libraryId);
+            var libDeleted = (await mContext.Libraries.DeleteOneAsync(libFilter, ct)).DeletedCount;
+            libraryRowDeleted = libDeleted > 0;
+        }
+        else
+        {
+            var library = await GetLibraryAsync(libraryId, ct);
+            if (library != null && library.CurrentVersion == version)
+            {
+                var newCurrent = remaining[0].Version;
+                library.CurrentVersion = newCurrent;
+                await UpsertLibraryAsync(library, ct);
+                repointedTo = newCurrent;
+            }
+        }
+
+        var result = new DeleteVersionResult(versionsDeleted, libraryRowDeleted, repointedTo);
+        return result;
+    }
+}
