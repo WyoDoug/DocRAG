@@ -99,4 +99,14 @@ public class ScrapeJobRecord
     ///     When the job finished (success, failure, or cancellation).
     /// </summary>
     public DateTime? CompletedAt { get; set; }
+
+    /// <summary>
+    ///     When progress was last recorded.
+    /// </summary>
+    public DateTime? LastProgressAt { get; set; }
+
+    /// <summary>
+    ///     When the job was cancelled, if applicable.
+    /// </summary>
+    public DateTime? CancelledAt { get; set; }
 }
