@@ -192,6 +192,38 @@ public class ChunkRepository : IChunkRepository
     }
 
     /// <inheritdoc />
+    public async Task<IReadOnlyList<Symbol>> GetAllSymbolsAsync(string libraryId,
+                                                                string version,
+                                                                string? filter = null,
+                                                                CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(libraryId);
+        ArgumentException.ThrowIfNullOrEmpty(version);
+
+        var chunks = await GetChunksAsync(libraryId, version, ct);
+        var seen = new HashSet<(string Name, SymbolKind Kind)>();
+        var symbols = new List<Symbol>();
+
+        foreach (var chunk in chunks)
+        {
+            var filtered = string.IsNullOrEmpty(filter)
+                               ? chunk.Symbols
+                               : chunk.Symbols.Where(s => s.Name.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                                             .ToList();
+
+            foreach (var s in filtered)
+            {
+                var key = (s.Name, s.Kind);
+                if (seen.Add(key))
+                    symbols.Add(s);
+            }
+        }
+
+        var result = (IReadOnlyList<Symbol>) symbols;
+        return result;
+    }
+
+    /// <inheritdoc />
     public async Task<long> UpdateCategoryByPageUrlAsync(string libraryId,
                                                          string version,
                                                          string pageUrl,

@@ -77,6 +77,16 @@ public interface IChunkRepository
                                                 CancellationToken ct = default);
 
     /// <summary>
+    ///     Get all distinct symbols (with kind tags) across the library version.
+    ///     Returns both v2+ typed symbols and legacy type names from QualifiedName.
+    ///     Used by list_symbols when kind filter is null.
+    /// </summary>
+    Task<IReadOnlyList<Symbol>> GetAllSymbolsAsync(string libraryId,
+                                                   string version,
+                                                   string? filter = null,
+                                                   CancellationToken ct = default);
+
+    /// <summary>
     ///     Bulk update the Category field for all chunks belonging to a given page URL.
     ///     Used by the reclassify workflow when an LLM corrects a page's category
     ///     after initial ingestion.

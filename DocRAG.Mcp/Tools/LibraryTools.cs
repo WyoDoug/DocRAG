@@ -21,6 +21,11 @@ namespace DocRAG.Mcp.Tools;
 [McpServerToolType]
 public static class LibraryTools
 {
+    private const string KindClass = "class";
+    private const string KindEnum = "enum";
+    private const string KindFunction = "function";
+    private const string KindParameter = "parameter";
+
     [McpServerTool(Name = "list_libraries")]
     [Description("List all available documentation libraries with their current version and all ingested versions.")]
     public static async Task<string> ListLibraries(RepositoryFactory repositoryFactory,
@@ -37,14 +42,17 @@ public static class LibraryTools
         return result;
     }
 
-    [McpServerTool(Name = "list_classes")]
-    [Description("List all documented classes/types for a library. Useful for discovering what API reference is available."
+    [McpServerTool(Name = "list_symbols")]
+    [Description("List documented symbols for a library, optionally filtered by kind. " +
+                 "kind=class|enum|function|parameter, or omit for all kinds. " +
+                 "Returns [{name, kind}] so callers can render heterogeneous results."
                 )]
-    public static async Task<string> ListClasses(RepositoryFactory repositoryFactory,
-                                                 [Description("Library identifier (e.g. 'infragistics-wpf', 'questpdf')"
-                                                             )]
+    public static async Task<string> ListSymbols(RepositoryFactory repositoryFactory,
+                                                 [Description("Library identifier")]
                                                  string library,
-                                                 [Description("Optional partial name filter")]
+                                                 [Description("Symbol kind filter: 'class', 'enum', 'function', 'parameter', or null for all")]
+                                                 string? kind = null,
+                                                 [Description("Optional partial name filter (case-insensitive)")]
                                                  string? filter = null,
                                                  [Description("Specific version — defaults to current")]
                                                  string? version = null,
@@ -55,130 +63,55 @@ public static class LibraryTools
         ArgumentNullException.ThrowIfNull(repositoryFactory);
         ArgumentException.ThrowIfNullOrEmpty(library);
 
-        var libraryRepository = repositoryFactory.GetLibraryRepository(profile);
-        var chunkRepository = repositoryFactory.GetChunkRepository(profile);
+        var libraryRepo = repositoryFactory.GetLibraryRepository(profile);
+        var chunkRepo = repositoryFactory.GetChunkRepository(profile);
+        var resolvedVersion = await ResolveVersionAsync(libraryRepo, library, version, ct);
 
-        var resolvedVersion = await ResolveVersionAsync(libraryRepository, library, version, ct);
-        var result = await ProjectNamesOrNotFoundAsync(library,
-                                                       resolvedVersion,
-                                                       filter,
-                                                       (lib, ver, f, c) => chunkRepository.GetQualifiedNamesAsync(lib, ver, f, c),
-                                                       ct
-                                                      );
-        return result;
-    }
-
-    [McpServerTool(Name = "list_enums")]
-    [Description("List documented enum types for a library. Returns only Symbols with Kind == Enum from " +
-                 "the identifier-aware extractor; complements list_classes by surfacing enumerations " +
-                 "that are not classes."
-                )]
-    public static async Task<string> ListEnums(RepositoryFactory repositoryFactory,
-                                               [Description("Library identifier")]
-                                               string library,
-                                               [Description("Optional partial name filter")]
-                                               string? filter = null,
-                                               [Description("Specific version — defaults to current")]
-                                               string? version = null,
-                                               [Description("Optional database profile name")]
-                                               string? profile = null,
-                                               CancellationToken ct = default)
-    {
-        ArgumentNullException.ThrowIfNull(repositoryFactory);
-        ArgumentException.ThrowIfNullOrEmpty(library);
-
-        var result = await ListSymbolsByKindAsync(repositoryFactory, library, SymbolKind.Enum, filter, version, profile, ct);
-        return result;
-    }
-
-    [McpServerTool(Name = "list_functions")]
-    [Description("List documented functions/methods for a library. Returns only Symbols with " +
-                 "Kind == Function from the identifier-aware extractor."
-                )]
-    public static async Task<string> ListFunctions(RepositoryFactory repositoryFactory,
-                                                   [Description("Library identifier")]
-                                                   string library,
-                                                   [Description("Optional partial name filter")]
-                                                   string? filter = null,
-                                                   [Description("Specific version — defaults to current")]
-                                                   string? version = null,
-                                                   [Description("Optional database profile name")]
-                                                   string? profile = null,
-                                                   CancellationToken ct = default)
-    {
-        ArgumentNullException.ThrowIfNull(repositoryFactory);
-        ArgumentException.ThrowIfNullOrEmpty(library);
-
-        var result = await ListSymbolsByKindAsync(repositoryFactory, library, SymbolKind.Function, filter, version, profile, ct);
-        return result;
-    }
-
-    [McpServerTool(Name = "list_parameters")]
-    [Description("List documented configurable parameters for a library. Useful for hardware/motion-control " +
-                 "docs (Aerotech etc.) where the primary unit of API surface is a parameter rather than a class."
-                )]
-    public static async Task<string> ListParameters(RepositoryFactory repositoryFactory,
-                                                    [Description("Library identifier")]
-                                                    string library,
-                                                    [Description("Optional partial name filter")]
-                                                    string? filter = null,
-                                                    [Description("Specific version — defaults to current")]
-                                                    string? version = null,
-                                                    [Description("Optional database profile name")]
-                                                    string? profile = null,
-                                                    CancellationToken ct = default)
-    {
-        ArgumentNullException.ThrowIfNull(repositoryFactory);
-        ArgumentException.ThrowIfNullOrEmpty(library);
-
-        var result = await ListSymbolsByKindAsync(repositoryFactory, library, SymbolKind.Parameter, filter, version, profile, ct);
-        return result;
-    }
-
-    private static async Task<string> ListSymbolsByKindAsync(RepositoryFactory repositoryFactory,
-                                                             string library,
-                                                             SymbolKind kind,
-                                                             string? filter,
-                                                             string? version,
-                                                             string? profile,
-                                                             CancellationToken ct)
-    {
-        ArgumentNullException.ThrowIfNull(repositoryFactory);
-        ArgumentException.ThrowIfNullOrEmpty(library);
-
-        var libraryRepository = repositoryFactory.GetLibraryRepository(profile);
-        var chunkRepository = repositoryFactory.GetChunkRepository(profile);
-
-        var resolvedVersion = await ResolveVersionAsync(libraryRepository, library, version, ct);
-        var result = await ProjectNamesOrNotFoundAsync(library,
-                                                       resolvedVersion,
-                                                       filter,
-                                                       (lib, ver, f, c) => chunkRepository.GetSymbolsAsync(lib, ver, kind, f, c),
-                                                       ct
-                                                      );
-        return result;
-    }
-
-    private static async Task<string> ProjectNamesOrNotFoundAsync(string library,
-                                                                  string? resolvedVersion,
-                                                                  string? filter,
-                                                                  Func<string, string, string?, CancellationToken, Task<IReadOnlyList<string>>> fetch,
-                                                                  CancellationToken ct)
-    {
         string result;
         if (resolvedVersion == null)
         {
-            var notFound = new { Error = $"Library '{library}' not found." };
-            result = JsonSerializer.Serialize(notFound, smJsonOptions);
+            var nf = new { Error = $"Library '{library}' not found." };
+            result = JsonSerializer.Serialize(nf, smJsonOptions);
         }
         else
         {
-            var names = await fetch(library, resolvedVersion, filter, ct);
-            result = JsonSerializer.Serialize(names, smJsonOptions);
+            var entries = new List<object>();
+            if (kind == null)
+            {
+                var all = await chunkRepo.GetAllSymbolsAsync(library, resolvedVersion, filter, ct);
+                foreach (var s in all)
+                    entries.Add(new { name = s.Name, kind = KindToString(s.Kind) });
+            }
+            else
+            {
+                var parsed = ParseKind(kind);
+                var names = await chunkRepo.GetSymbolsAsync(library, resolvedVersion, parsed, filter, ct);
+                var kindString = kind.ToLowerInvariant();
+                foreach (var n in names)
+                    entries.Add(new { name = n, kind = kindString });
+            }
+            result = JsonSerializer.Serialize(entries, smJsonOptions);
         }
-
         return result;
     }
+
+    private static SymbolKind ParseKind(string raw) => raw.ToLowerInvariant() switch
+    {
+        KindClass => SymbolKind.Type,
+        KindEnum => SymbolKind.Enum,
+        KindFunction => SymbolKind.Function,
+        KindParameter => SymbolKind.Parameter,
+        _ => throw new ArgumentException($"Unknown kind '{raw}'. Expected: class, enum, function, parameter.")
+    };
+
+    private static string KindToString(SymbolKind kind) => kind switch
+    {
+        SymbolKind.Type => KindClass,
+        SymbolKind.Enum => KindEnum,
+        SymbolKind.Function => KindFunction,
+        SymbolKind.Parameter => KindParameter,
+        _ => kind.ToString().ToLowerInvariant()
+    };
 
     internal static async Task<string?> ResolveVersionAsync(ILibraryRepository libraryRepository,
                                                             string libraryId,
