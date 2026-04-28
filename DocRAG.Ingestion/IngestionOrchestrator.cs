@@ -11,6 +11,7 @@ using DocRAG.Core.Models;
 using DocRAG.Ingestion.Chunking;
 using DocRAG.Ingestion.Classification;
 using DocRAG.Ingestion.Crawling;
+using DocRAG.Ingestion.Suspect;
 using Microsoft.Extensions.Logging;
 
 #endregion
@@ -32,6 +33,8 @@ public class IngestionOrchestrator
                                  ILibraryRepository libraryRepository,
                                  IPageRepository pageRepository,
                                  IChunkRepository chunkRepository,
+                                 ILibraryProfileRepository libraryProfileRepository,
+                                 SuspectDetector suspectDetector,
                                  ILogger<IngestionOrchestrator> logger)
     {
         mCrawler = crawler;
@@ -42,11 +45,15 @@ public class IngestionOrchestrator
         mLibraryRepository = libraryRepository;
         mPageRepository = pageRepository;
         mChunkRepository = chunkRepository;
+        mLibraryProfileRepository = libraryProfileRepository;
+        mSuspectDetector = suspectDetector;
         mLogger = logger;
     }
 
     private readonly CategoryAwareChunker mChunker;
     private readonly IChunkRepository mChunkRepository;
+    private readonly ILibraryProfileRepository mLibraryProfileRepository;
+    private readonly SuspectDetector mSuspectDetector;
 
     private readonly PageCrawler mCrawler;
     private readonly IEmbeddingProvider mEmbeddingProvider;
@@ -245,6 +252,35 @@ public class IngestionOrchestrator
                                     EmbeddingDimensions = mEmbeddingProvider.Dimensions
                                 };
         await mLibraryRepository.UpsertVersionAsync(versionRecord, ct);
+        await EvaluateSuspectAsync(job, progress, ct);
+    }
+
+    private async Task EvaluateSuspectAsync(ScrapeJob job, ScrapeJobRecord progress, CancellationToken ct)
+    {
+        var languageMix = await mChunkRepository.GetLanguageMixAsync(job.LibraryId, job.Version, ct);
+        var hostnameDist = await mChunkRepository.GetHostnameDistributionAsync(job.LibraryId, job.Version, ct);
+        var sampleTitles = await mChunkRepository.GetSampleTitlesAsync(job.LibraryId, job.Version, SuspectSampleTitleLimit, ct);
+
+        var profile = await mLibraryProfileRepository.GetAsync(job.LibraryId, job.Version, ct);
+        var declaredLanguages = profile?.Languages ?? Array.Empty<string>();
+
+        // distinctLinkTargets: SparseLinkGraph disabled until an outbound-link count helper exists.
+        // Passed as int.MaxValue so it never triggers; the other four reasons cover the common cases.
+        var reasons = await mSuspectDetector.EvaluateAsync(job.LibraryId,
+                                                           job.Version,
+                                                           job.RootUrl,
+                                                           pageCount: progress.PagesCompleted,
+                                                           distinctHostCount: hostnameDist.Count,
+                                                           distinctLinkTargets: int.MaxValue,
+                                                           languageMix: languageMix,
+                                                           declaredLanguages: declaredLanguages,
+                                                           sampleTitles: sampleTitles,
+                                                           ct);
+
+        if (reasons.Count > 0)
+            await mLibraryRepository.SetSuspectAsync(job.LibraryId, job.Version, reasons, ct);
+        else
+            await mLibraryRepository.ClearSuspectAsync(job.LibraryId, job.Version, ct);
     }
 
     #endregion
@@ -254,6 +290,8 @@ public class IngestionOrchestrator
         string result = text.Length > maxChars ? text[..maxChars] : text;
         return result;
     }
+
+    private const int SuspectSampleTitleLimit = 5;
 
     private const int PageChannelCapacity = 50;
     private const int ChunkChannelCapacity = 20;
