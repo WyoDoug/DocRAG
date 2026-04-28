@@ -38,9 +38,24 @@ public static class LibraryTools
 
         var libraryRepository = repositoryFactory.GetLibraryRepository(profile);
         var libraries = await libraryRepository.GetAllLibrariesAsync(ct);
-        var result = JsonSerializer.Serialize(libraries, smJsonOptions);
+
+        string result;
+        if (libraries.Count == 0)
+        {
+            var emptyResponse = new
+                                    {
+                                        Libraries = Array.Empty<object>(),
+                                        Hint = EmptyDatabaseHint
+                                    };
+            result = JsonSerializer.Serialize(emptyResponse, smJsonOptions);
+        }
+        else
+            result = JsonSerializer.Serialize(libraries, smJsonOptions);
+
         return result;
     }
+
+    private const string EmptyDatabaseHint = "Database is empty. Call get_dashboard_index for orientation, or use index_project_dependencies(path=...) / scrape_docs(url=..., libraryId=..., version=...) to ingest.";
 
     [McpServerTool(Name = "list_symbols")]
     [Description("List documented symbols for a library, optionally filtered by kind. " +

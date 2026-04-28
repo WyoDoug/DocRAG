@@ -6,6 +6,8 @@
 
 using System.ComponentModel;
 using System.Text.Json;
+using DocRAG.Core.Enums;
+using DocRAG.Core.Interfaces;
 using DocRAG.Core.Models;
 using DocRAG.Database.Repositories;
 using ModelContextProtocol.Server;
@@ -56,8 +58,8 @@ public static class HealthTools
         string library,
         LibraryRecord lib,
         string? version,
-        DocRAG.Core.Interfaces.IChunkRepository chunkRepo,
-        DocRAG.Core.Interfaces.ILibraryRepository libraryRepo,
+        IChunkRepository chunkRepo,
+        ILibraryRepository libraryRepo,
         CancellationToken ct)
     {
         var resolvedVersion = version ?? lib.CurrentVersion;
@@ -76,7 +78,7 @@ public static class HealthTools
         LibraryRecord lib,
         string resolvedVersion,
         LibraryVersionRecord versionRecord,
-        DocRAG.Core.Interfaces.IChunkRepository chunkRepo,
+        IChunkRepository chunkRepo,
         CancellationToken ct)
     {
         var languageMix = await chunkRepo.GetLanguageMixAsync(library, resolvedVersion, ct);
@@ -114,6 +116,76 @@ public static class HealthTools
         _ => (null, null)
     };
 
+    [McpServerTool(Name = "get_dashboard_index")]
+    [Description("Single-call DocRAG status overview. Returns library/version counts, " +
+                 "recent scrape jobs (with stale-running flags), suspect/stale library " +
+                 "lists (capped at 20), and a SuggestedNextAction. The documented entry " +
+                 "point for fresh sessions."
+                )]
+    public static async Task<string> GetDashboardIndex(RepositoryFactory repositoryFactory,
+                                                       [Description("Optional database profile name")]
+                                                       string? profile = null,
+                                                       CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(repositoryFactory);
+
+        var libraryRepo = repositoryFactory.GetLibraryRepository(profile);
+        var jobRepo = repositoryFactory.GetScrapeJobRepository(profile);
+
+        var libraries = await libraryRepo.GetAllLibrariesAsync(ct);
+        var recentJobs = await jobRepo.ListRecentAsync(limit: RecentJobsLimit, ct);
+
+        var suspectList = new List<object>();
+        int versionCount = 0;
+        foreach (var lib in libraries)
+        {
+            foreach (var v in lib.AllVersions)
+            {
+                versionCount++;
+                var versionRecord = await libraryRepo.GetVersionAsync(lib.Id, v, ct);
+                if (versionRecord != null && versionRecord.Suspect && suspectList.Count < SuspectListCap)
+                    suspectList.Add(new { library = lib.Id, version = v, reasons = versionRecord.SuspectReasons });
+            }
+        }
+
+        var staleThreshold = TimeSpan.FromHours(StaleRunningThresholdHours);
+        var recentJobsProjection = recentJobs.Select(j => new
+                                                              {
+                                                                  j.Id,
+                                                                  j.Status,
+                                                                  Library = j.Job.LibraryId,
+                                                                  j.Job.Version,
+                                                                  stale = j.Status == ScrapeJobStatus.Running
+                                                                          && j.LastProgressAt.HasValue
+                                                                          && DateTime.UtcNow - j.LastProgressAt.Value > staleThreshold,
+                                                                  j.LastProgressAt
+                                                              })
+                                              .ToList();
+
+        int staleRunning = recentJobs.Count(j => j.Status == ScrapeJobStatus.Running
+                                                  && j.LastProgressAt.HasValue
+                                                  && DateTime.UtcNow - j.LastProgressAt.Value > staleThreshold);
+
+        object suggested = (libraries.Count == 0, suspectList.Count > 0, staleRunning > 0) switch
+        {
+            (true, _, _) => new { tool = (string?) SuggestToolScrape, message = EmptyDbSuggestion },
+            (_, true, _) => new { tool = (string?) SuggestToolCorrectUrl, message = $"{suspectList.Count} suspect libraries — review and correct URLs." },
+            (_, _, true) => new { tool = (string?) SuggestToolCancelScrape, message = $"{staleRunning} jobs have not progressed in over {StaleRunningThresholdHours}h." },
+            _ => new { tool = (string?) null, message = SuggestMessageHealthy }
+        };
+
+        var response = new
+                           {
+                               libraryCount = libraries.Count,
+                               versionCount,
+                               recentJobs = recentJobsProjection,
+                               suspectCount = suspectList.Count,
+                               suspectLibraries = suspectList,
+                               suggestedNextAction = suggested
+                           };
+        return JsonSerializer.Serialize(response, smJsonOptions);
+    }
+
     private static readonly JsonSerializerOptions smJsonOptions = new() { WriteIndented = true };
 
     private const int MaxHostnamesReturned = 20;
@@ -123,4 +195,12 @@ public static class HealthTools
     private const string BoundaryHintRecommendedMessage = "rechunk_library recommended";
     private const string BoundaryHintMayHelpKey = "rechunk_may_help";
     private const string BoundaryHintMayHelpMessage = "rechunk_library may help";
+    private const int RecentJobsLimit = 5;
+    private const int SuspectListCap = 20;
+    private const int StaleRunningThresholdHours = 4;
+    private const string EmptyDbSuggestion = "Database is empty. Ingest a library to begin.";
+    private const string SuggestToolScrape = "scrape_docs";
+    private const string SuggestToolCorrectUrl = "submit_url_correction";
+    private const string SuggestToolCancelScrape = "cancel_scrape";
+    private const string SuggestMessageHealthy = "All libraries look healthy.";
 }

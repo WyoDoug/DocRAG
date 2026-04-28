@@ -100,6 +100,70 @@ public sealed class HealthToolsTests
         Assert.Contains("rechunk_library recommended", json);
     }
 
+    [Fact]
+    public async Task GetDashboardIndexEmptyDbRecommendsIngestion()
+    {
+        var (factory, libraryRepo, _) = MakeFactory();
+        libraryRepo.GetAllLibrariesAsync(Arg.Any<CancellationToken>()).Returns(Array.Empty<LibraryRecord>());
+
+        var jobRepo = Substitute.For<IScrapeJobRepository>();
+        factory.GetScrapeJobRepository(Arg.Any<string?>()).Returns(jobRepo);
+        jobRepo.ListRecentAsync(Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(Array.Empty<ScrapeJobRecord>());
+
+        var json = await HealthTools.GetDashboardIndex(factory, profile: null,
+                                                       ct: TestContext.Current.CancellationToken);
+
+        Assert.Contains("\"libraryCount\": 0", json);
+        Assert.Contains("Database is empty", json);
+    }
+
+    [Fact]
+    public async Task GetDashboardIndexPopulatedDbAggregatesAcrossLibraries()
+    {
+        var (factory, libraryRepo, _) = MakeFactory();
+        libraryRepo.GetAllLibrariesAsync(Arg.Any<CancellationToken>())
+                   .Returns(new[]
+                                {
+                                    new LibraryRecord { Id = "a", Name = "a", Hint = "h", CurrentVersion = "1.0", AllVersions = new() { "1.0" } },
+                                    new LibraryRecord { Id = "b", Name = "b", Hint = "h", CurrentVersion = "1.0", AllVersions = new() { "1.0" } }
+                                });
+        libraryRepo.GetVersionAsync("a", "1.0", Arg.Any<CancellationToken>())
+                   .Returns(new LibraryVersionRecord
+                                {
+                                    Id = "a/1.0", LibraryId = "a", Version = "1.0",
+                                    ScrapedAt = DateTime.UtcNow,
+                                    PageCount = 100, ChunkCount = 500,
+                                    EmbeddingProviderId = "ollama",
+                                    EmbeddingModelName = "nomic-embed-text",
+                                    EmbeddingDimensions = 768,
+                                    Suspect = true,
+                                    SuspectReasons = new[] { "LanguageMismatch" }
+                                });
+        libraryRepo.GetVersionAsync("b", "1.0", Arg.Any<CancellationToken>())
+                   .Returns(new LibraryVersionRecord
+                                {
+                                    Id = "b/1.0", LibraryId = "b", Version = "1.0",
+                                    ScrapedAt = DateTime.UtcNow,
+                                    PageCount = 100, ChunkCount = 500,
+                                    EmbeddingProviderId = "ollama",
+                                    EmbeddingModelName = "nomic-embed-text",
+                                    EmbeddingDimensions = 768,
+                                    Suspect = false,
+                                    SuspectReasons = Array.Empty<string>()
+                                });
+
+        var jobRepo = Substitute.For<IScrapeJobRepository>();
+        factory.GetScrapeJobRepository(Arg.Any<string?>()).Returns(jobRepo);
+        jobRepo.ListRecentAsync(Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(Array.Empty<ScrapeJobRecord>());
+
+        var json = await HealthTools.GetDashboardIndex(factory, profile: null,
+                                                       ct: TestContext.Current.CancellationToken);
+
+        Assert.Contains("\"libraryCount\": 2", json);
+        Assert.Contains("\"suspectCount\": 1", json);
+        Assert.Contains("\"a\"", json);
+    }
+
     private static (RepositoryFactory factory, ILibraryRepository libraryRepo, IChunkRepository chunkRepo) MakeFactory()
     {
         var factory = Substitute.For<RepositoryFactory>(new object?[] { null });
