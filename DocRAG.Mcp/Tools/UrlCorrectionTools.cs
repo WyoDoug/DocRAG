@@ -30,8 +30,10 @@ public static class UrlCorrectionTools
     [Description("Re-root a scrape at a corrected URL. Drops the existing chunks, " +
                  "pages, profile, indexes, and bm25 shards for (library, version), " +
                  "clears the Suspect flag, then queues a fresh scrape_docs at newUrl. " +
-                 "Use this when start_ingest returned URL_SUSPECT and you've identified " +
-                 "a better docs URL. dryRun=false is the default — this is the recovery path."
+                 "Use when start_ingest returned URL_SUSPECT or when scrape_docs(resume=true) " +
+                 "returned Status=Refused with Reason=URL_SUSPECT — both indicate the indexed " +
+                 "content is probably wrong. Browse the URL yourself first to confirm a better one. " +
+                 "dryRun=false is the default — the tool applies immediately. Pass dryRun=true to preview."
                 )]
     public static async Task<string> SubmitUrlCorrection(RepositoryFactory repositoryFactory,
                                                          ScrapeJobRunner runner,

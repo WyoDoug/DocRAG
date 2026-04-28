@@ -28,7 +28,9 @@ public static class HealthTools
     [McpServerTool(Name = "get_library_health")]
     [Description("Per-version diagnostic snapshot. Returns chunk count, hostname " +
                  "distribution, language mix, boundary-issue rate, and suspect markers. " +
-                 "For the actual library content, use get_library_overview instead."
+                 "Also returns a SuggestedNextAction field (submit_url_correction if suspect, " +
+                 "rechunk_library if boundaryIssuePct ≥ 10%, rescrub_library if parser is stale, " +
+                 "null if healthy). For the actual library content, use get_library_overview instead."
                 )]
     public static async Task<string> GetLibraryHealth(RepositoryFactory repositoryFactory,
                                                       [Description("Library identifier")]
@@ -117,10 +119,13 @@ public static class HealthTools
     };
 
     [McpServerTool(Name = "get_dashboard_index")]
-    [Description("Single-call DocRAG status overview. Returns library/version counts, " +
-                 "recent scrape jobs (with stale-running flags), suspect/stale library " +
-                 "lists (capped at 20), and a SuggestedNextAction. The documented entry " +
-                 "point for fresh sessions."
+    [Description("Start here in any fresh or disoriented session. Returns a single-call " +
+                 "DocRAG status overview: library/version counts, recent scrape jobs (with " +
+                 "Stale flags for Running jobs that haven't progressed in 4+ hours), and up to " +
+                 "20 suspect libraries. The SuggestedNextAction field always contains the highest-priority " +
+                 "tool to call next (scrape_docs for empty DB, submit_url_correction for suspect libraries, " +
+                 "cancel_scrape for stale-running jobs, null when healthy). Act on SuggestedNextAction " +
+                 "before doing anything else."
                 )]
     public static async Task<string> GetDashboardIndex(RepositoryFactory repositoryFactory,
                                                        [Description("Optional database profile name")]

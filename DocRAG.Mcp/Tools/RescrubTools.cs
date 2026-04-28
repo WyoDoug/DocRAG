@@ -31,7 +31,9 @@ public static class RescrubTools
                  "(library, version). Does NOT re-crawl, re-chunk, or re-embed. Updates " +
                  "Symbols[], QualifiedName, ParserVersion (and Category if reclassification " +
                  "is enabled). Bootstraps or rebuilds library_indexes (CodeFenceSymbols + " +
-                 "Manifest). Returns a summary with counts and a sample of per-chunk diffs. " +
+                 "Manifest). Returns counts, a sample of per-chunk diffs, and a BoundaryHint " +
+                 "field: null (healthy), 'rechunk_library may help' (5%–10% boundary issues), or " +
+                 "'rechunk_library recommended' (≥10%). Act on the hint before calling search_docs. " +
                  "Idempotent and resumable. If no LibraryProfile exists yet, returns " +
                  "RECON_NEEDED — call recon_library and submit_library_profile first."
                 )]

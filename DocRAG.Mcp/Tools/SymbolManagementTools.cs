@@ -99,7 +99,8 @@ public static class SymbolManagementTools
     ///     Returns a summary of what changed plus a hint to call rescrub_library.
     /// </summary>
     [McpServerTool(Name = "add_to_likely_symbols")]
-    [Description("Promote one or more tokens to LibraryProfile.LikelySymbols so the " +
+    [Description("Call list_excluded_symbols first to identify tokens the extractor rejected that should be kept. " +
+                 "Promote one or more tokens to LibraryProfile.LikelySymbols so the " +
                  "extractor keeps them even without other structural signal. Auto-removes " +
                  "any case-equivalent variant from LibraryProfile.Stoplist (last call wins). " +
                  "Returns a summary of what changed plus a hint to call rescrub_library.")]
@@ -175,7 +176,8 @@ public static class SymbolManagementTools
     ///     of what changed plus a hint to call rescrub_library.
     /// </summary>
     [McpServerTool(Name = "add_to_stoplist")]
-    [Description("Demote one or more tokens to LibraryProfile.Stoplist so the extractor " +
+    [Description("Call list_excluded_symbols first to identify tokens the extractor accepted that should be rejected. " +
+                 "Demote one or more tokens to LibraryProfile.Stoplist so the extractor " +
                  "rejects them regardless of structural signal. Case-insensitive — adding " +
                  "'foo' blocks 'Foo', 'FOO', etc. Auto-removes case-equivalent entries " +
                  "from LibraryProfile.LikelySymbols (last call wins). Returns a summary " +

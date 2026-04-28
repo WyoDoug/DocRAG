@@ -26,14 +26,11 @@ public static class RechunkTools
 {
     [McpServerTool(Name = "rechunk_library")]
     [Description("Re-run the chunker over pages already stored for (library, version). " +
-                 "Replaces all chunks and re-embeds. NO re-crawl, NO re-classify. Use after " +
-                 "a chunker code change to refresh existing libraries — for example, when " +
-                 "the boundary heuristic stops cutting through dotted identifiers and the " +
-                 "existing chunks should be re-cut without re-fetching the docs site. " +
-                 "Returns counts plus before/after BoundaryIssues so you can confirm the " +
-                 "chunker change actually helped. After rechunk completes, the chunks have " +
-                 "first-pass shape-only Symbols[]; call rescrub_library next to populate " +
-                 "the corpus-aware Symbols[] / QualifiedName and rebuild library_indexes."
+                 "Replaces all chunks and re-embeds, then requires rescrub_library as a mandatory follow-up " +
+                 "to populate corpus-aware Symbols[] and rebuild library_indexes — do not skip this. " +
+                 "NO re-crawl, NO re-classify. Use after a chunker code change when existing chunks should " +
+                 "be re-cut without re-fetching the docs site. Returns counts plus before/after BoundaryIssues " +
+                 "so you can confirm the chunker change actually helped."
                 )]
     public static async Task<string> RechunkLibrary(RepositoryFactory repositoryFactory,
                                                     RechunkService service,

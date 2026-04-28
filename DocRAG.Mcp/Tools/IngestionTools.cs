@@ -1,4 +1,4 @@
-// IngestionTools.cs
+﻿// IngestionTools.cs
 // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
 // Use subject to the MIT License.
 
@@ -25,7 +25,7 @@ namespace DocRAG.Mcp.Tools;
 public static class IngestionTools
 {
     [McpServerTool(Name = "dryrun_scrape")]
-    [Description("Dry-run a documentation scrape â€” fetches every page with Playwright " +
+    [Description("Dry-run a documentation scrape — fetches every page with Playwright " +
                  "but does NOT store anything to the database or clone any GitHub repos. " +
                  "Returns a report showing how many pages would be ingested, how deep " +
                  "the crawl goes, and which GitHub repos would be cloned. " +
@@ -77,7 +77,13 @@ public static class IngestionTools
 
 
     [McpServerTool(Name = "get_scrape_status")]
-    [Description("Check the status of a scrape job by its id.")]
+    [Description("Check the status of a scrape job by its id. " +
+                 "Status values: Queued (waiting), Running (in progress), " +
+                 "Completed (fully indexed — call search_docs or get_class_reference), " +
+                 "Failed (ingestion error — call get_server_logs to diagnose, then delete_version and retry), " +
+                 "Cancelled (stopped by cancel_scrape — partial results kept; call delete_version to clear them). " +
+                 "Poll at reasonable intervals (10–30s); the job id comes from scrape_docs or submit_url_correction."
+                )]
     public static async Task<string> GetScrapeStatus(RepositoryFactory repositoryFactory,
                                                      [Description("Job id returned from scrape_library")]
                                                      string jobId,
@@ -124,7 +130,11 @@ public static class IngestionTools
     }
 
     [McpServerTool(Name = "list_scrape_jobs")]
-    [Description("List recent scrape jobs (most recent first).")]
+    [Description("List recent scrape jobs, most recent first. " +
+                 "Use job ids from this list with get_scrape_status (poll progress) or cancel_scrape (stop a job). " +
+                 "Running jobs with no recent progress (stale) appear in get_dashboard_index with a Stale flag — " +
+                 "call cancel_scrape for them. Failed jobs: call get_server_logs to diagnose."
+                )]
     public static async Task<string> ListScrapeJobs(RepositoryFactory repositoryFactory,
                                                     [Description("Maximum jobs to return (default 20)")]
                                                     int limit = 20,
@@ -156,7 +166,7 @@ public static class IngestionTools
     [McpServerTool(Name = "reload_profile")]
     [Description("Reload the in-memory vector index from MongoDB for a profile. " +
                  "Useful after manual data changes or to recover from index drift. " +
-                 "Normally not needed â€” scrape_library auto-reloads when ingestion completes."
+                 "Normally not needed — scrape_library auto-reloads when ingestion completes."
                 )]
     public static async Task<string> ReloadProfile(ScrapeJobRunner runner,
                                                    [Description("Optional database profile name")]

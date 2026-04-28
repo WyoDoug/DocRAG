@@ -31,7 +31,8 @@ public static class CancellationTools
                  "for active jobs, or marks the DB row Cancelled directly for orphaned " +
                  "jobs (process restarted while job was Running). No-op for jobs already " +
                  "Completed/Failed/Cancelled. Partial results are kept — call delete_version " +
-                 "or submit_url_correction afterward to clear them."
+                 "to clear them, or submit_url_correction if the cancel was triggered by a wrong " +
+                 "URL (that tool clears partial data and re-queues with a corrected URL in one step)."
                 )]
     public static async Task<string> CancelScrape(ScrapeJobRunner runner,
                                                   [Description("Job id from list_scrape_jobs or get_scrape_status")]

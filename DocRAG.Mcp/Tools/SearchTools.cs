@@ -141,7 +141,9 @@ public static class SearchTools
 
     [McpServerTool(Name = "get_library_overview")]
     [Description("Get an overview of what a library is and how to get started. " +
-                 "Returns Overview-category documentation chunks. " +
+                 "Returns Overview-category documentation chunks — actual library content. " +
+                 "For diagnostic information (chunk counts, language mix, boundary issues, suspect markers), " +
+                 "use get_library_health instead. " +
                  "If no Overview content exists, returns the most relevant chunks of any category."
                 )]
     public static async Task<string> GetLibraryOverview(IVectorSearchProvider vectorSearch,

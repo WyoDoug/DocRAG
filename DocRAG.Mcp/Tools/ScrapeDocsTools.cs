@@ -33,7 +33,9 @@ public static class ScrapeDocsTools
                  "Pass allowedUrlPatterns / excludedUrlPatterns only if the auto-derived host filter is too " +
                  "narrow or too broad. Use this for both ad-hoc URLs and post-recon scrapes — there is no " +
                  "separate scrape_library tool. resume=true reuses the most recent ScrapeJob's rootUrl and " +
-                 "patterns when url is omitted."
+                 "patterns when url is omitted. If the library is flagged URL_SUSPECT, resume=true returns " +
+                 "Status=Refused — call submit_url_correction(library, version, newUrl) first to clear the " +
+                 "flag and re-queue with a corrected URL."
                 )]
     public static async Task<string> ScrapeDocs(ScrapeJobRunner runner,
                                                 RepositoryFactory repositoryFactory,
