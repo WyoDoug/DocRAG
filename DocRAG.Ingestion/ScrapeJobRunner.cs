@@ -103,6 +103,15 @@ public class ScrapeJobRunner : IScrapeJobQueue
                                             forceClean: jobRecord.Job.ForceClean,
                                             updatedRecord =>
                                             {
+                                                bool counterIncreased =
+                                                    updatedRecord.PagesQueued != jobRecord.PagesQueued ||
+                                                    updatedRecord.PagesFetched != jobRecord.PagesFetched ||
+                                                    updatedRecord.PagesClassified != jobRecord.PagesClassified ||
+                                                    updatedRecord.ChunksGenerated != jobRecord.ChunksGenerated ||
+                                                    updatedRecord.ChunksEmbedded != jobRecord.ChunksEmbedded ||
+                                                    updatedRecord.ChunksCompleted != jobRecord.ChunksCompleted ||
+                                                    updatedRecord.PagesCompleted != jobRecord.PagesCompleted;
+
                                                 jobRecord.PipelineState = updatedRecord.PipelineState;
                                                 jobRecord.PagesQueued = updatedRecord.PagesQueued;
                                                 jobRecord.PagesFetched = updatedRecord.PagesFetched;
@@ -112,6 +121,10 @@ public class ScrapeJobRunner : IScrapeJobQueue
                                                 jobRecord.ChunksCompleted = updatedRecord.ChunksCompleted;
                                                 jobRecord.PagesCompleted = updatedRecord.PagesCompleted;
                                                 jobRecord.ErrorCount = updatedRecord.ErrorCount;
+
+                                                if (counterIncreased)
+                                                    jobRecord.LastProgressAt = DateTime.UtcNow;
+
                                                 mJobRepository.UpsertAsync(jobRecord).GetAwaiter().GetResult();
                                             },
                                             jobRecord,
