@@ -120,7 +120,7 @@ public class RescrubService
 
         if (!options.DryRun)
         {
-            await excludedRepo.DeleteAllForLibraryAsync(libraryId, version, ct);
+            await excludedRepo.DeleteAsync(libraryId, version, ct);
             await excludedRepo.UpsertManyAsync(excludedEntries, ct);
         }
 

@@ -49,8 +49,9 @@ public interface IExcludedSymbolsRepository
     /// <summary>
     ///     Wipe all rejections for (libraryId, version). Called at the start
     ///     of each rescrub so we never accumulate stale rows.
+    ///     Returns the count of deleted documents.
     /// </summary>
-    Task DeleteAllForLibraryAsync(string libraryId, string version, CancellationToken ct = default);
+    Task<long> DeleteAsync(string libraryId, string version, CancellationToken ct = default);
 
     /// <summary>
     ///     Total count of rejections for (libraryId, version). Used by the

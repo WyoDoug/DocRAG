@@ -98,13 +98,14 @@ public class ExcludedSymbolsRepository : IExcludedSymbolsRepository
     }
 
     /// <inheritdoc />
-    public async Task DeleteAllForLibraryAsync(string libraryId, string version, CancellationToken ct = default)
+    public async Task<long> DeleteAsync(string libraryId, string version, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(libraryId);
         ArgumentException.ThrowIfNullOrEmpty(version);
 
-        await mContext.ExcludedSymbols
-                      .DeleteManyAsync(e => e.LibraryId == libraryId && e.Version == version, ct);
+        var result = await mContext.ExcludedSymbols
+                                   .DeleteManyAsync(e => e.LibraryId == libraryId && e.Version == version, ct);
+        return result.DeletedCount;
     }
 
     /// <inheritdoc />

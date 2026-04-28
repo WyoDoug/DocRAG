@@ -271,7 +271,7 @@ public sealed class RescrubServiceTests
                                                 TestContext.Current.CancellationToken
                                                );
 
-        await excludedRepo.Received(1).DeleteAllForLibraryAsync("lib", "1.0", Arg.Any<CancellationToken>());
+        await excludedRepo.Received(1).DeleteAsync("lib", "1.0", Arg.Any<CancellationToken>());
         await excludedRepo.Received(1).UpsertManyAsync(Arg.Any<IEnumerable<ExcludedSymbol>>(), Arg.Any<CancellationToken>());
         Assert.True(result.ExcludedCount > 0);
     }
@@ -301,7 +301,7 @@ public sealed class RescrubServiceTests
                                                 TestContext.Current.CancellationToken
                                                );
 
-        await excludedRepo.DidNotReceive().DeleteAllForLibraryAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await excludedRepo.DidNotReceive().DeleteAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         await excludedRepo.DidNotReceive().UpsertManyAsync(Arg.Any<IEnumerable<ExcludedSymbol>>(), Arg.Any<CancellationToken>());
         Assert.True(result.ExcludedCount > 0);
     }

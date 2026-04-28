@@ -140,20 +140,22 @@ public class Bm25ShardRepository : IBm25ShardRepository
     }
 
     /// <inheritdoc />
-    public async Task DeleteShardsAsync(string libraryId,
-                                        string version,
-                                        CancellationToken ct = default)
+    public async Task<long> DeleteShardsAsync(string libraryId,
+                                              string version,
+                                              CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(libraryId);
         ArgumentException.ThrowIfNullOrEmpty(version);
 
         var existing = await GetAllShardsAsync(libraryId, version, ct);
-        await mContext.Bm25Shards
-                      .DeleteManyAsync(s => s.LibraryId == libraryId && s.Version == version, ct);
+        var result = await mContext.Bm25Shards
+                                   .DeleteManyAsync(s => s.LibraryId == libraryId && s.Version == version, ct);
 
         var bucket = mContext.Bm25Bucket;
         foreach(var shard in existing)
             await DeleteSpilledPayloadsAsync(shard, bucket, ct);
+
+        return result.DeletedCount;
     }
 
     /// <summary>

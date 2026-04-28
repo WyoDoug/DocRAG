@@ -69,8 +69,9 @@ public interface IBm25ShardRepository
     /// <summary>
     ///     Delete all shards and any GridFS payloads for (libraryId,
     ///     version). Used when a library version is removed entirely.
+    ///     Returns the count of deleted shard documents.
     /// </summary>
-    Task DeleteShardsAsync(string libraryId,
-                           string version,
-                           CancellationToken ct = default);
+    Task<long> DeleteShardsAsync(string libraryId,
+                                 string version,
+                                 CancellationToken ct = default);
 }
