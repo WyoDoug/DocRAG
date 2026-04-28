@@ -37,7 +37,7 @@ public class RepositoryFactory
     /// <summary>
     ///     Get a page repository for the specified profile.
     /// </summary>
-    public IPageRepository GetPageRepository(string? profile = null)
+    public virtual IPageRepository GetPageRepository(string? profile = null)
     {
         var context = mContextFactory.GetForProfile(profile);
         var result = new PageRepository(context);
@@ -47,7 +47,7 @@ public class RepositoryFactory
     /// <summary>
     ///     Get a chunk repository for the specified profile.
     /// </summary>
-    public IChunkRepository GetChunkRepository(string? profile = null)
+    public virtual IChunkRepository GetChunkRepository(string? profile = null)
     {
         var context = mContextFactory.GetForProfile(profile);
         var result = new ChunkRepository(context);
@@ -57,7 +57,7 @@ public class RepositoryFactory
     /// <summary>
     ///     Get a diff repository for the specified profile.
     /// </summary>
-    public IDiffRepository GetDiffRepository(string? profile = null)
+    public virtual IDiffRepository GetDiffRepository(string? profile = null)
     {
         var context = mContextFactory.GetForProfile(profile);
         var result = new DiffRepository(context);
@@ -67,7 +67,7 @@ public class RepositoryFactory
     /// <summary>
     ///     Get a scrape job repository for the specified profile.
     /// </summary>
-    public IScrapeJobRepository GetScrapeJobRepository(string? profile = null)
+    public virtual IScrapeJobRepository GetScrapeJobRepository(string? profile = null)
     {
         var context = mContextFactory.GetForProfile(profile);
         var result = new ScrapeJobRepository(context);
@@ -89,7 +89,7 @@ public class RepositoryFactory
     ///     Get a library-index repository for the specified database profile.
     ///     Stores BM25 stats + CodeFenceSymbols + Manifest per (library, version).
     /// </summary>
-    public ILibraryIndexRepository GetLibraryIndexRepository(string? profile = null)
+    public virtual ILibraryIndexRepository GetLibraryIndexRepository(string? profile = null)
     {
         var context = mContextFactory.GetForProfile(profile);
         var result = new LibraryIndexRepository(context);
@@ -101,7 +101,7 @@ public class RepositoryFactory
     ///     Stores per-shard postings with per-term and per-shard GridFS
     ///     spill for any payload exceeding the inline 16MB Mongo limit.
     /// </summary>
-    public IBm25ShardRepository GetBm25ShardRepository(string? profile = null)
+    public virtual IBm25ShardRepository GetBm25ShardRepository(string? profile = null)
     {
         var context = mContextFactory.GetForProfile(profile);
         var result = new Bm25ShardRepository(context);
