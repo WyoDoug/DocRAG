@@ -32,8 +32,9 @@ public interface IChunkRepository
 
     /// <summary>
     ///     Delete all chunks for a library version (used before re-chunking).
+    ///     Returns the count of deleted documents.
     /// </summary>
-    Task DeleteChunksAsync(string libraryId, string version, CancellationToken ct = default);
+    Task<long> DeleteChunksAsync(string libraryId, string version, CancellationToken ct = default);
 
     /// <summary>
     ///     Get all chunks for a library version (for indexing into vector search).

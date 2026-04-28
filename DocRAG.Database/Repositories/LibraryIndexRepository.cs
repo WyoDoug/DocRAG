@@ -51,13 +51,14 @@ public class LibraryIndexRepository : ILibraryIndexRepository
     }
 
     /// <inheritdoc />
-    public async Task DeleteAsync(string libraryId, string version, CancellationToken ct = default)
+    public async Task<long> DeleteAsync(string libraryId, string version, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(libraryId);
         ArgumentException.ThrowIfNullOrEmpty(version);
 
         var id = MakeId(libraryId, version);
-        await mContext.LibraryIndexes.DeleteOneAsync(i => i.Id == id, ct);
+        var result = await mContext.LibraryIndexes.DeleteOneAsync(i => i.Id == id, ct);
+        return result.DeletedCount;
     }
 
     /// <summary>

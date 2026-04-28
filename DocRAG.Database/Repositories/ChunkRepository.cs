@@ -49,7 +49,7 @@ public class ChunkRepository : IChunkRepository
     }
 
     /// <inheritdoc />
-    public async Task DeleteChunksAsync(string libraryId, string version, CancellationToken ct = default)
+    public async Task<long> DeleteChunksAsync(string libraryId, string version, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(libraryId);
         ArgumentException.ThrowIfNullOrEmpty(version);
@@ -58,7 +58,8 @@ public class ChunkRepository : IChunkRepository
                                                    Builders<DocChunk>.Filter.Eq(c => c.Version, version)
                                                   );
 
-        await mContext.Chunks.DeleteManyAsync(filter, ct);
+        var result = await mContext.Chunks.DeleteManyAsync(filter, ct);
+        return result.DeletedCount;
     }
 
     /// <inheritdoc />
