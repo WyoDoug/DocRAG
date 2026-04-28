@@ -41,6 +41,7 @@ public class ScrapeJobRunner : IScrapeJobQueue
         mAppStoppingToken = lifetime.ApplicationStopping;
     }
 
+    private readonly ConcurrentDictionary<string, CancellationTokenSource> mActiveJobCts = new();
     private readonly CancellationToken mAppStoppingToken;
     private readonly IChunkRepository mChunkRepository;
     private readonly IScrapeJobRepository mJobRepository;
@@ -80,6 +81,7 @@ public class ScrapeJobRunner : IScrapeJobQueue
         var semaphore = smJobLocks.GetOrAdd(lockKey, _ => new SemaphoreSlim(initialCount: 1, maxCount: 1));
 
         await semaphore.WaitAsync(mAppStoppingToken);
+        CancellationTokenSource? cts = null;
         try
         {
             jobRecord.Status = ScrapeJobStatus.Running;
@@ -92,6 +94,9 @@ public class ScrapeJobRunner : IScrapeJobQueue
                                    jobRecord.Job.LibraryId,
                                    jobRecord.Job.Version
                                   );
+
+            cts = CancellationTokenSource.CreateLinkedTokenSource(mAppStoppingToken);
+            mActiveJobCts[jobRecord.Id] = cts;
 
             await mOrchestrator.IngestAsync(jobRecord.Job,
                                             jobRecord.Profile,
@@ -109,7 +114,8 @@ public class ScrapeJobRunner : IScrapeJobQueue
                                                 jobRecord.ErrorCount = updatedRecord.ErrorCount;
                                                 mJobRepository.UpsertAsync(jobRecord).GetAwaiter().GetResult();
                                             },
-                                            jobRecord
+                                            jobRecord,
+                                            cts.Token
                                            );
 
             // Reload the vector index for this library version so the new
@@ -123,6 +129,21 @@ public class ScrapeJobRunner : IScrapeJobQueue
 
             mLogger.LogInformation("Scrape job {JobId} completed successfully", jobRecord.Id);
         }
+        catch(Exception) when (cts != null && cts.IsCancellationRequested)
+        {
+            mLogger.LogInformation("Scrape job {JobId} was cancelled", jobRecord.Id);
+
+            // CancelAsync already wrote the Cancelled status; only update if it
+            // hasn't been persisted yet (e.g. cancellation came from app shutdown).
+            if (jobRecord.Status != ScrapeJobStatus.Cancelled)
+            {
+                jobRecord.Status = ScrapeJobStatus.Cancelled;
+                jobRecord.PipelineState = nameof(ScrapeJobStatus.Cancelled);
+                jobRecord.CancelledAt = DateTime.UtcNow;
+                jobRecord.CompletedAt = DateTime.UtcNow;
+                await mJobRepository.UpsertAsync(jobRecord);
+            }
+        }
         catch(Exception ex)
         {
             mLogger.LogError(ex, "Scrape job {JobId} failed", jobRecord.Id);
@@ -135,6 +156,12 @@ public class ScrapeJobRunner : IScrapeJobQueue
         }
         finally
         {
+            if (cts != null)
+            {
+                mActiveJobCts.TryRemove(jobRecord.Id, out _);
+                cts.Dispose();
+            }
+
             semaphore.Release();
         }
     }
@@ -185,6 +212,48 @@ public class ScrapeJobRunner : IScrapeJobQueue
                                profile ?? "(default)",
                                libraries.Count
                               );
+    }
+
+    /// <summary>
+    ///     Cancel an in-flight or orphaned scrape job. Returns a
+    ///     <see cref="CancelScrapeOutcome" /> the caller can map to a user-facing message.
+    ///     If an active runner exists the CTS is signalled; if the process was restarted
+    ///     and the job is stranded in Running state the DB row is updated directly.
+    /// </summary>
+    public virtual async Task<CancelScrapeOutcome> CancelAsync(string jobId, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(jobId);
+
+        var jobRepo = mRepositoryFactory.GetScrapeJobRepository(profile: null);
+        var record = await jobRepo.GetAsync(jobId, ct);
+
+        CancelScrapeOutcome result;
+        switch (record)
+        {
+            case null:
+                result = CancelScrapeOutcome.NotFound;
+                break;
+            case { Status: ScrapeJobStatus.Completed or ScrapeJobStatus.Failed or ScrapeJobStatus.Cancelled }:
+                result = CancelScrapeOutcome.AlreadyTerminal;
+                break;
+            default:
+                if (mActiveJobCts.TryGetValue(jobId, out var cts))
+                {
+                    await cts.CancelAsync();
+                    result = CancelScrapeOutcome.Signalled;
+                }
+                else
+                    result = CancelScrapeOutcome.OrphanCleanedUp;
+
+                record.Status = ScrapeJobStatus.Cancelled;
+                record.PipelineState = nameof(ScrapeJobStatus.Cancelled);
+                record.CancelledAt = DateTime.UtcNow;
+                record.CompletedAt = DateTime.UtcNow;
+                await jobRepo.UpsertAsync(record, ct);
+                break;
+        }
+
+        return result;
     }
 
     private const string PipelineStateStarting = "Starting";
