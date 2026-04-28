@@ -107,4 +107,34 @@ public interface IChunkRepository
                                    string version,
                                    int currentParserVersion,
                                    CancellationToken ct = default);
+
+    /// <summary>
+    ///     Returns the fraction of chunks (in [0, 1]) for each CodeLanguage
+    ///     in the (libraryId, version). Chunks with null CodeLanguage are
+    ///     grouped under "unfenced". Used by get_library_health to surface
+    ///     the code-language mix for a library version.
+    /// </summary>
+    Task<IReadOnlyDictionary<string, double>> GetLanguageMixAsync(string libraryId,
+                                                                   string version,
+                                                                   CancellationToken ct = default);
+
+    /// <summary>
+    ///     Returns the count of chunks per hostname extracted from PageUrl
+    ///     for the (libraryId, version). URLs that cannot be parsed as
+    ///     absolute URIs contribute to the "(unknown)" bucket. Used by
+    ///     get_library_health to detect multi-host ingestions.
+    /// </summary>
+    Task<IReadOnlyDictionary<string, int>> GetHostnameDistributionAsync(string libraryId,
+                                                                         string version,
+                                                                         CancellationToken ct = default);
+
+    /// <summary>
+    ///     Returns up to <paramref name="limit"/> distinct PageTitle values
+    ///     from chunks in the (libraryId, version). Used by get_library_health
+    ///     to provide a quick qualitative sample without loading full content.
+    /// </summary>
+    Task<IReadOnlyList<string>> GetSampleTitlesAsync(string libraryId,
+                                                      string version,
+                                                      int limit,
+                                                      CancellationToken ct = default);
 }

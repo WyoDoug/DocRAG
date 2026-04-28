@@ -267,6 +267,65 @@ public class ChunkRepository : IChunkRepository
         return match != null;
     }
 
+    /// <inheritdoc />
+    public async Task<IReadOnlyDictionary<string, double>> GetLanguageMixAsync(string libraryId,
+                                                                                string version,
+                                                                                CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(libraryId);
+        ArgumentException.ThrowIfNullOrEmpty(version);
+
+        var filter = Builders<DocChunk>.Filter.And(Builders<DocChunk>.Filter.Eq(c => c.LibraryId, libraryId),
+                                                   Builders<DocChunk>.Filter.Eq(c => c.Version, version)
+                                                  );
+        var langs = await mContext.Chunks.Find(filter).Project(c => c.CodeLanguage).ToListAsync(ct);
+        var dist = langs.GroupBy(l => l ?? UnfencedLanguageKey).ToDictionary(g => g.Key, g => g.Count());
+        var total = dist.Values.Sum();
+        var mix = dist.ToDictionary(kv => kv.Key, kv => total == 0 ? 0.0 : (double) kv.Value / total);
+        return mix;
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyDictionary<string, int>> GetHostnameDistributionAsync(string libraryId,
+                                                                                      string version,
+                                                                                      CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(libraryId);
+        ArgumentException.ThrowIfNullOrEmpty(version);
+
+        var filter = Builders<DocChunk>.Filter.And(Builders<DocChunk>.Filter.Eq(c => c.LibraryId, libraryId),
+                                                   Builders<DocChunk>.Filter.Eq(c => c.Version, version)
+                                                  );
+        var urls = await mContext.Chunks.Find(filter).Project(c => c.PageUrl).ToListAsync(ct);
+        var dist = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var url in urls)
+        {
+            var host = Uri.TryCreate(url, UriKind.Absolute, out var u) ? u.Host : UnknownHostKey;
+            dist[host] = dist.GetValueOrDefault(host) + 1;
+        }
+        return dist;
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<string>> GetSampleTitlesAsync(string libraryId,
+                                                                   string version,
+                                                                   int limit,
+                                                                   CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(libraryId);
+        ArgumentException.ThrowIfNullOrEmpty(version);
+
+        var filter = Builders<DocChunk>.Filter.And(Builders<DocChunk>.Filter.Eq(c => c.LibraryId, libraryId),
+                                                   Builders<DocChunk>.Filter.Eq(c => c.Version, version)
+                                                  );
+        var titles = await mContext.Chunks.Find(filter)
+                                          .Project(c => c.PageTitle)
+                                          .Limit(limit)
+                                          .ToListAsync(ct);
+        var distinct = titles.Distinct().Take(limit).ToList();
+        return distinct;
+    }
+
     private async Task UpsertChunksBulkAsync(IReadOnlyList<DocChunk> chunks, CancellationToken ct)
     {
         var bulkOps = chunks.Select(chunk =>
@@ -281,4 +340,6 @@ public class ChunkRepository : IChunkRepository
     }
 
     private const int ParserVersionV2 = 2;
+    private const string UnfencedLanguageKey = "unfenced";
+    private const string UnknownHostKey = "(unknown)";
 }

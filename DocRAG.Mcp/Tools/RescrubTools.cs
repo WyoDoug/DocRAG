@@ -74,12 +74,14 @@ public static class RescrubTools
         var indexRepo = repositoryFactory.GetLibraryIndexRepository(profile);
         var bm25ShardRepo = repositoryFactory.GetBm25ShardRepository(profile);
         var excludedRepo = repositoryFactory.GetExcludedSymbolsRepository(profile);
+        var libraryRepo = repositoryFactory.GetLibraryRepository(profile);
 
         var result = await service.RescrubAsync(chunkRepo,
                                                 profileRepo,
                                                 indexRepo,
                                                 bm25ShardRepo,
                                                 excludedRepo,
+                                                libraryRepo,
                                                 library,
                                                 version,
                                                 options,
