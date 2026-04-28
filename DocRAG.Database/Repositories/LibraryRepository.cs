@@ -177,6 +177,41 @@ public class LibraryRepository : ILibraryRepository
         return result;
     }
 
+    /// <inheritdoc />
+    public async Task SetSuspectAsync(string libraryId, string version, IReadOnlyList<string> reasons, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(libraryId);
+        ArgumentException.ThrowIfNullOrEmpty(version);
+        ArgumentNullException.ThrowIfNull(reasons);
+
+        var filter = Builders<LibraryVersionRecord>.Filter.And(
+            Builders<LibraryVersionRecord>.Filter.Eq(v => v.LibraryId, libraryId),
+            Builders<LibraryVersionRecord>.Filter.Eq(v => v.Version, version)
+        );
+        var update = Builders<LibraryVersionRecord>.Update
+            .Set(v => v.Suspect, true)
+            .Set(v => v.SuspectReasons, reasons)
+            .Set(v => v.LastSuspectEvaluatedAt, DateTime.UtcNow);
+        await mContext.LibraryVersions.UpdateOneAsync(filter, update, cancellationToken: ct);
+    }
+
+    /// <inheritdoc />
+    public async Task ClearSuspectAsync(string libraryId, string version, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(libraryId);
+        ArgumentException.ThrowIfNullOrEmpty(version);
+
+        var filter = Builders<LibraryVersionRecord>.Filter.And(
+            Builders<LibraryVersionRecord>.Filter.Eq(v => v.LibraryId, libraryId),
+            Builders<LibraryVersionRecord>.Filter.Eq(v => v.Version, version)
+        );
+        var update = Builders<LibraryVersionRecord>.Update
+            .Set(v => v.Suspect, false)
+            .Set(v => v.SuspectReasons, Array.Empty<string>())
+            .Set(v => v.LastSuspectEvaluatedAt, DateTime.UtcNow);
+        await mContext.LibraryVersions.UpdateOneAsync(filter, update, cancellationToken: ct);
+    }
+
     private async Task<RenameLibraryResult> ApplyRenameAsync(string oldId, string newId, CancellationToken ct)
     {
         var libFilter = Builders<LibraryRecord>.Filter.Eq(l => l.Id, oldId);

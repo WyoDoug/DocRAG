@@ -62,4 +62,14 @@ public interface ILibraryRepository
     ///     Pre-checks for collision (new name already exists) and missing source.
     /// </summary>
     Task<RenameLibraryResponse> RenameAsync(string oldId, string newId, CancellationToken ct = default);
+
+    /// <summary>
+    ///     Mark a library version as suspect, recording the reasons and evaluation timestamp.
+    /// </summary>
+    Task SetSuspectAsync(string libraryId, string version, IReadOnlyList<string> reasons, CancellationToken ct = default);
+
+    /// <summary>
+    ///     Clear the suspect flag on a library version, resetting reasons and updating the evaluation timestamp.
+    /// </summary>
+    Task ClearSuspectAsync(string libraryId, string version, CancellationToken ct = default);
 }
