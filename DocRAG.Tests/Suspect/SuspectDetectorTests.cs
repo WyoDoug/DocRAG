@@ -77,4 +77,44 @@ public sealed class SuspectDetectorTests
 
         Assert.Contains(SuspectReason.SparseLinkGraph, reasons);
     }
+
+    /// <summary>
+    ///     Frozen capture of the runaway mongodb.driver 3.4.0 scrape that prompted
+    ///     this branch. The NuGet PackageProjectUrl resolved to the multi-language
+    ///     MongoDB docs landing page, causing the crawler to index mostly Go/Ruby
+    ///     content under a declared C# library. LanguageMismatch must fire; the other
+    ///     heuristics must not — the link graph and page count are fine for a real
+    ///     docs portal.
+    /// </summary>
+    [Fact]
+    public async Task MongoDbDriverCanonicalBugFlagsLanguageMismatch()
+    {
+        var d = new SuspectDetector();
+        var reasons = await d.EvaluateAsync(
+            libraryId: "mongodb.driver",
+            version: "3.4.0",
+            rootUrl: "https://www.mongodb.com/docs/drivers/",
+            pageCount: 1018,
+            distinctHostCount: 4,
+            distinctLinkTargets: 800,
+            languageMix: new Dictionary<string, double>
+                             {
+                                 ["go"] = 0.40,
+                                 ["ruby"] = 0.30,
+                                 ["python"] = 0.20,
+                                 ["javascript"] = 0.05,
+                                 ["csharp"] = 0.05
+                             },
+            declaredLanguages: new[] { "csharp" },
+            sampleTitles: new[] { "MongoDB Go Driver", "MongoDB Ruby Driver", "MongoDB Python Driver" },
+            ct: TestContext.Current.CancellationToken);
+
+        Assert.Contains(SuspectReason.LanguageMismatch, reasons);
+
+        // Page count (1018) is well above OnePager threshold. Distinct links (800) are above
+        // SparseLinkGraph threshold. Root URL is not a GitHub repo. These must not fire.
+        Assert.DoesNotContain(SuspectReason.OnePager, reasons);
+        Assert.DoesNotContain(SuspectReason.SparseLinkGraph, reasons);
+        Assert.DoesNotContain(SuspectReason.ReadmeOnly, reasons);
+    }
 }
