@@ -42,5 +42,15 @@ public enum IngestStatus
     /// <summary>
     ///     Profile + full index + current parser version. Caller can query.
     /// </summary>
-    Ready
+    Ready,
+
+    /// <summary>
+    ///     URL appears suspicious or malformed during reconnaissance.
+    /// </summary>
+    UrlSuspect,
+
+    /// <summary>
+    ///     Scrape job is currently in progress.
+    /// </summary>
+    InProgress
 }

@@ -103,5 +103,12 @@ public record ScrapeJob
     /// </summary>
     public bool ForceClean { get; init; }
 
-    public const int DefaultFetchDelayMs = 1000;
+    /// <summary>
+    ///     Default per-page fetch delay. Zero means "no fixed delay" — pacing is
+    ///     handled adaptively by <c>HostRateLimiter</c> based on per-host response
+    ///     status (slows down on 429/503, speeds up on sustained success). A
+    ///     non-zero value is still honored as an extra floor delay if a caller
+    ///     wants to force pacing on top of the limiter.
+    /// </summary>
+    public const int DefaultFetchDelayMs = 0;
 }

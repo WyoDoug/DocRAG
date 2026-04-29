@@ -31,6 +31,7 @@ public interface ILibraryIndexRepository
 
     /// <summary>
     ///     Delete the index bundle. Used by tests and force-rebuild paths.
+    ///     Returns the count of deleted documents.
     /// </summary>
-    Task DeleteAsync(string libraryId, string version, CancellationToken ct = default);
+    Task<long> DeleteAsync(string libraryId, string version, CancellationToken ct = default);
 }

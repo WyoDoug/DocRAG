@@ -38,6 +38,7 @@ using DocRAG.Ingestion.Ecosystems.Pip;
 using DocRAG.Ingestion.Embedding;
 
 using DocRAG.Ingestion.Scanning;
+using DocRAG.Ingestion.Suspect;
 
 using DocRAG.Mcp;
 
@@ -205,6 +206,8 @@ builder.Services.AddSingleton<GitHubRepoScraper>();
 builder.Services.AddSingleton<PageCrawler>();
 
 builder.Services.AddSingleton<CategoryAwareChunker>();
+
+builder.Services.AddSingleton<SuspectDetector>();
 
 builder.Services.AddSingleton<IngestionOrchestrator>();
 

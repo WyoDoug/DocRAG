@@ -29,6 +29,7 @@ public sealed class RescrubServiceTests
         var indexRepo = Substitute.For<ILibraryIndexRepository>();
         var bm25ShardRepo = Substitute.For<IBm25ShardRepository>();
         var excludedRepo = Substitute.For<IExcludedSymbolsRepository>();
+        var libraryRepo = Substitute.For<ILibraryRepository>();
 
         profileRepo.GetAsync("lib", "1.0", Arg.Any<CancellationToken>()).Returns((LibraryProfile?) null);
 
@@ -37,6 +38,7 @@ public sealed class RescrubServiceTests
                                                 indexRepo,
                                                 bm25ShardRepo,
                                                 excludedRepo,
+                                                libraryRepo,
                                                 "lib",
                                                 "1.0",
                                                 new RescrubOptions(),
@@ -56,6 +58,7 @@ public sealed class RescrubServiceTests
         var indexRepo = Substitute.For<ILibraryIndexRepository>();
         var bm25ShardRepo = Substitute.For<IBm25ShardRepository>();
         var excludedRepo = Substitute.For<IExcludedSymbolsRepository>();
+        var libraryRepo = Substitute.For<ILibraryRepository>();
 
         profileRepo.GetAsync("lib", "1.0", Arg.Any<CancellationToken>())
                    .Returns(MakeProfile());
@@ -70,6 +73,7 @@ public sealed class RescrubServiceTests
                                                 indexRepo,
                                                 bm25ShardRepo,
                                                 excludedRepo,
+                                                libraryRepo,
                                                 "lib",
                                                 "1.0",
                                                 options,
@@ -92,6 +96,7 @@ public sealed class RescrubServiceTests
         var indexRepo = Substitute.For<ILibraryIndexRepository>();
         var bm25ShardRepo = Substitute.For<IBm25ShardRepository>();
         var excludedRepo = Substitute.For<IExcludedSymbolsRepository>();
+        var libraryRepo = Substitute.For<ILibraryRepository>();
 
         profileRepo.GetAsync("lib", "1.0", Arg.Any<CancellationToken>())
                    .Returns(MakeProfile());
@@ -106,6 +111,7 @@ public sealed class RescrubServiceTests
                                                 indexRepo,
                                                 bm25ShardRepo,
                                                 excludedRepo,
+                                                libraryRepo,
                                                 "lib",
                                                 "1.0",
                                                 options,
@@ -138,6 +144,7 @@ public sealed class RescrubServiceTests
         var profileRepo = Substitute.For<ILibraryProfileRepository>();
         var indexRepo = Substitute.For<ILibraryIndexRepository>();
         var bm25ShardRepo = Substitute.For<IBm25ShardRepository>();
+        var libraryRepo = Substitute.For<ILibraryRepository>();
 
         var profile = MakeProfile();
         profileRepo.GetAsync("lib", "1.0", Arg.Any<CancellationToken>()).Returns(profile);
@@ -171,6 +178,7 @@ public sealed class RescrubServiceTests
                                                 indexRepo,
                                                 bm25ShardRepo,
                                                 excludedRepo,
+                                                libraryRepo,
                                                 "lib",
                                                 "1.0",
                                                 new RescrubOptions(),
@@ -255,6 +263,7 @@ public sealed class RescrubServiceTests
         var indexRepo = Substitute.For<ILibraryIndexRepository>();
         var bm25ShardRepo = Substitute.For<IBm25ShardRepository>();
         var excludedRepo = Substitute.For<IExcludedSymbolsRepository>();
+        var libraryRepo = Substitute.For<ILibraryRepository>();
 
         profileRepo.GetAsync("lib", "1.0", Arg.Any<CancellationToken>()).Returns(MakeProfile());
         chunkRepo.GetChunksAsync("lib", "1.0", Arg.Any<CancellationToken>())
@@ -265,13 +274,14 @@ public sealed class RescrubServiceTests
                                                 indexRepo,
                                                 bm25ShardRepo,
                                                 excludedRepo,
+                                                libraryRepo,
                                                 "lib",
                                                 "1.0",
                                                 new RescrubOptions(),
                                                 TestContext.Current.CancellationToken
                                                );
 
-        await excludedRepo.Received(1).DeleteAllForLibraryAsync("lib", "1.0", Arg.Any<CancellationToken>());
+        await excludedRepo.Received(1).DeleteAsync("lib", "1.0", Arg.Any<CancellationToken>());
         await excludedRepo.Received(1).UpsertManyAsync(Arg.Any<IEnumerable<ExcludedSymbol>>(), Arg.Any<CancellationToken>());
         Assert.True(result.ExcludedCount > 0);
     }
@@ -285,6 +295,7 @@ public sealed class RescrubServiceTests
         var indexRepo = Substitute.For<ILibraryIndexRepository>();
         var bm25ShardRepo = Substitute.For<IBm25ShardRepository>();
         var excludedRepo = Substitute.For<IExcludedSymbolsRepository>();
+        var libraryRepo = Substitute.For<ILibraryRepository>();
 
         profileRepo.GetAsync("lib", "1.0", Arg.Any<CancellationToken>()).Returns(MakeProfile());
         chunkRepo.GetChunksAsync("lib", "1.0", Arg.Any<CancellationToken>())
@@ -295,13 +306,14 @@ public sealed class RescrubServiceTests
                                                 indexRepo,
                                                 bm25ShardRepo,
                                                 excludedRepo,
+                                                libraryRepo,
                                                 "lib",
                                                 "1.0",
                                                 new RescrubOptions { DryRun = true },
                                                 TestContext.Current.CancellationToken
                                                );
 
-        await excludedRepo.DidNotReceive().DeleteAllForLibraryAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await excludedRepo.DidNotReceive().DeleteAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         await excludedRepo.DidNotReceive().UpsertManyAsync(Arg.Any<IEnumerable<ExcludedSymbol>>(), Arg.Any<CancellationToken>());
         Assert.True(result.ExcludedCount > 0);
     }
@@ -315,6 +327,7 @@ public sealed class RescrubServiceTests
         var indexRepo = Substitute.For<ILibraryIndexRepository>();
         var bm25ShardRepo = Substitute.For<IBm25ShardRepository>();
         var excludedRepo = Substitute.For<IExcludedSymbolsRepository>();
+        var libraryRepo = Substitute.For<ILibraryRepository>();
 
         profileRepo.GetAsync("lib", "1.0", Arg.Any<CancellationToken>()).Returns(MakeProfile());
         var noiseChunks = Enumerable.Range(0, 30)
@@ -327,6 +340,7 @@ public sealed class RescrubServiceTests
                                                 indexRepo,
                                                 bm25ShardRepo,
                                                 excludedRepo,
+                                                libraryRepo,
                                                 "lib",
                                                 "1.0",
                                                 new RescrubOptions(),
@@ -347,6 +361,7 @@ public sealed class RescrubServiceTests
         var indexRepo = Substitute.For<ILibraryIndexRepository>();
         var bm25ShardRepo = Substitute.For<IBm25ShardRepository>();
         var excludedRepo = Substitute.For<IExcludedSymbolsRepository>();
+        var libraryRepo = Substitute.For<ILibraryRepository>();
 
         profileRepo.GetAsync("lib", "1.0", Arg.Any<CancellationToken>()).Returns(MakeProfile());
         chunkRepo.GetChunksAsync("lib", "1.0", Arg.Any<CancellationToken>())
@@ -357,6 +372,7 @@ public sealed class RescrubServiceTests
                                                 indexRepo,
                                                 bm25ShardRepo,
                                                 excludedRepo,
+                                                libraryRepo,
                                                 "lib",
                                                 "1.0",
                                                 new RescrubOptions(),

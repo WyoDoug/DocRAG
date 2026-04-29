@@ -60,13 +60,26 @@ public static class SettingsTools
     {
         ArgumentNullException.ThrowIfNull(levelSwitch);
 
-        if (!string.IsNullOrEmpty(level) && Enum.TryParse<LogEventLevel>(level, ignoreCase: true, out var parsed))
-            levelSwitch.MinimumLevel = parsed;
+        string? warning = null;
+        if (!string.IsNullOrEmpty(level))
+        {
+            if (Enum.TryParse<LogEventLevel>(level, ignoreCase: true, out var parsed))
+                levelSwitch.MinimumLevel = parsed;
+            else
+                warning = string.Format(InvalidLevelWarningFormat, level);
+        }
 
-        var response = new { MinimumLogLevel = levelSwitch.MinimumLevel.ToString() };
+        var response = new
+                           {
+                               MinimumLogLevel = levelSwitch.MinimumLevel.ToString(),
+                               Warning = warning
+                           };
         var result = JsonSerializer.Serialize(response, smJsonOptions);
         return result;
     }
+
+    private const string InvalidLevelWarningFormat =
+        "Unknown level '{0}'. Valid values: Verbose, Debug, Information, Warning, Error, Fatal. Current level unchanged.";
 
     private static readonly JsonSerializerOptions smJsonOptions = new() { WriteIndented = true };
 }

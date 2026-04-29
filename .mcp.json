@@ -3,7 +3,8 @@
     "docrag": {
       "type": "http",
       "url": "http://localhost:6100/mcp",
-      "timeout": 60
+      "timeout": 60,
+      "alwaysLoad": true
     }
   }
 }

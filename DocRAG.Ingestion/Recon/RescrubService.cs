@@ -51,6 +51,7 @@ public class RescrubService
                                                   ILibraryIndexRepository indexRepo,
                                                   IBm25ShardRepository bm25ShardRepo,
                                                   IExcludedSymbolsRepository excludedRepo,
+                                                  ILibraryRepository libraryRepo,
                                                   string libraryId,
                                                   string version,
                                                   RescrubOptions options,
@@ -61,6 +62,7 @@ public class RescrubService
         ArgumentNullException.ThrowIfNull(indexRepo);
         ArgumentNullException.ThrowIfNull(bm25ShardRepo);
         ArgumentNullException.ThrowIfNull(excludedRepo);
+        ArgumentNullException.ThrowIfNull(libraryRepo);
         ArgumentException.ThrowIfNullOrEmpty(libraryId);
         ArgumentException.ThrowIfNullOrEmpty(version);
         ArgumentNullException.ThrowIfNull(options);
@@ -71,7 +73,7 @@ public class RescrubService
         if (profile == null)
             result = new RescrubResult { LibraryId = libraryId, Version = version, ReconNeeded = true };
         else
-            result = await RunRescrubAsync(chunkRepo, indexRepo, bm25ShardRepo, excludedRepo, libraryId, version, profile, options, ct);
+            result = await RunRescrubAsync(chunkRepo, indexRepo, bm25ShardRepo, excludedRepo, libraryRepo, libraryId, version, profile, options, ct);
 
         return result;
     }
@@ -80,6 +82,7 @@ public class RescrubService
                                                       ILibraryIndexRepository indexRepo,
                                                       IBm25ShardRepository bm25ShardRepo,
                                                       IExcludedSymbolsRepository excludedRepo,
+                                                      ILibraryRepository libraryRepo,
                                                       string libraryId,
                                                       string version,
                                                       LibraryProfile profile,
@@ -120,7 +123,7 @@ public class RescrubService
 
         if (!options.DryRun)
         {
-            await excludedRepo.DeleteAllForLibraryAsync(libraryId, version, ct);
+            await excludedRepo.DeleteAsync(libraryId, version, ct);
             await excludedRepo.UpsertManyAsync(excludedEntries, ct);
         }
 
@@ -154,7 +157,26 @@ public class RescrubService
                                options.DryRun
                               );
 
+        if (!options.DryRun && options.BoundaryAudit)
+            await PersistBoundaryIssuePctAsync(libraryRepo, libraryId, version, boundaryIssues, scoped.Count, ct);
+
         return result;
+    }
+
+    private static async Task PersistBoundaryIssuePctAsync(ILibraryRepository libraryRepo,
+                                                            string libraryId,
+                                                            string version,
+                                                            int boundaryIssues,
+                                                            int chunkCount,
+                                                            CancellationToken ct)
+    {
+        var versionRecord = await libraryRepo.GetVersionAsync(libraryId, version, ct);
+        if (versionRecord != null)
+        {
+            var pct = BoundaryIssuePctScale * boundaryIssues / Math.Max(1, chunkCount);
+            versionRecord.BoundaryIssuePct = pct;
+            await libraryRepo.UpsertVersionAsync(versionRecord, ct);
+        }
     }
 
     private async Task<List<RescrubDiff>> ProcessChunksAsync(IChunkRepository chunkRepo,
@@ -428,4 +450,5 @@ public class RescrubService
     private const string LanguagesSeparator = ", ";
     private const int HintMinAbsoluteExclusions = 20;
     private const double HintMinExclusionRatio = 0.05;
+    private const double BoundaryIssuePctScale = 100.0;
 }

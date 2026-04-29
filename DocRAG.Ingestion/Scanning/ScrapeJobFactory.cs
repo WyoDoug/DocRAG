@@ -24,7 +24,7 @@ public static class ScrapeJobFactory
                                           string version,
                                           string? hint = null,
                                           int maxPages = DefaultMaxPages,
-                                          int fetchDelayMs = DefaultFetchDelayMs,
+                                          int fetchDelayMs = ScrapeJob.DefaultFetchDelayMs,
                                           bool forceClean = false)
     {
         ArgumentException.ThrowIfNullOrEmpty(url);
@@ -52,9 +52,8 @@ public static class ScrapeJobFactory
     }
 
     private const int DefaultMaxPages = 0;
-    private const int DefaultFetchDelayMs = 500;
     private const int DefaultInScopeDepth = 10;
-    private const int DefaultSameHostDepth = 5;
+    private const int DefaultSameHostDepth = 2;
     private const int DefaultOffSiteDepth = 1;
 
     private const string ExcludeBlog = @"/blog/";
