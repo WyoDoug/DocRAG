@@ -358,3 +358,16 @@ SaddleRAG.Cli/                    # Command-line interface
 SaddleRAG.Installer/              # WiX MSI installer definition
 SaddleRAG.Tests/                  # Integration and unit tests
 ```
+
+## License
+
+SaddleRAG is dual-licensed:
+
+- **Free for individual use** by a single natural person where the SaddleRAG instance serves only that person, under the [GNU Affero General Public License version 3 or later](./LICENSE).
+- **Commercial license required** for multi-user deployments at $100 per Authorized User per year. See [COMMERCIAL-LICENSE.md](./COMMERCIAL-LICENSE.md) for full terms.
+
+For commercial licensing inquiries: **[douglas@jackalopetechnologies.com](mailto:douglas@jackalopetechnologies.com)**
+
+SaddleRAG was previously distributed under the MIT License under the name DocRAG. The project was renamed and relicensed in 2026; commits prior to the relicense remain available under MIT terms.
+
+Contributions are welcome under the [Contributor License Agreement](./CLA.md). See [CONTRIBUTING.md](./CONTRIBUTING.md).

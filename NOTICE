@@ -1,0 +1,19 @@
+SaddleRAG
+Copyright (c) 2025-2026 Doug Gerard
+
+This product is dual-licensed:
+
+  1. Under the GNU Affero General Public License version 3 or later (AGPLv3),
+     for use in single-user deployments or in any deployment where the user
+     is willing to comply with the AGPLv3's source-availability obligations.
+     See LICENSE for the full AGPLv3 text.
+
+  2. Under a separate commercial license for multi-user deployments where
+     the user does not wish to comply with AGPLv3 obligations. See
+     COMMERCIAL-LICENSE.md for the full commercial license terms.
+     For commercial licensing inquiries: douglas@jackalopetechnologies.com
+
+This product previously distributed under the MIT License under the name
+"DocRAG"; that license applied to commits prior to the relicense commit
+that introduced this NOTICE. The project was renamed to SaddleRAG and
+relicensed in 2026.
