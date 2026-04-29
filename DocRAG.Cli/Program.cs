@@ -21,6 +21,7 @@ using DocRAG.Ingestion.Ecosystems.NuGet;
 using DocRAG.Ingestion.Ecosystems.Pip;
 using DocRAG.Ingestion.Embedding;
 using DocRAG.Ingestion.Scanning;
+using DocRAG.Ingestion.Suspect;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -115,6 +116,7 @@ services.AddSingleton<DocRAG.Ingestion.Recon.RescrubService>();
 services.AddSingleton<CategoryAwareChunker>();
 services.AddSingleton<IEmbeddingProvider, OllamaEmbeddingProvider>();
 services.AddSingleton<IVectorSearchProvider, InMemoryBruteForceVectorSearch>();
+services.AddSingleton<SuspectDetector>();
 services.AddSingleton<IngestionOrchestrator>();
 
 // Scrape job queue (required by DependencyIndexer)
@@ -172,8 +174,7 @@ var allowedOption = new Option<string[]>(AllowedOptionName, AllowedOptionDescrip
 var excludedOption = new Option<string[]>(ExcludedOptionName, ExcludedOptionDescription)
                          { AllowMultipleArgumentsPerToken = true };
 var maxPagesOption = new Option<int>(MaxPagesOptionName, () => 0, "Max pages to crawl (0 = unlimited)");
-const int DefaultFetchDelayMs = 1000;
-var delayOption = new Option<int>(DelayOptionName, () => DefaultFetchDelayMs, DelayOptionDescription);
+var delayOption = new Option<int>(DelayOptionName, () => ScrapeJob.DefaultFetchDelayMs, DelayOptionDescription);
 
 ingestCommand.AddOption(rootUrlOption);
 ingestCommand.AddOption(libraryIdOption);

@@ -4,6 +4,7 @@
 
 #region Usings
 
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
@@ -27,7 +28,11 @@ namespace DocRAG.Ingestion.Crawling;
 /// </summary>
 public class PageCrawler
 {
-    private record CrawlEntry(string Url, int InScopeDepth, int SameHostDepth, int OffSiteDepth);
+    private record CrawlEntry(string Url,
+                              int InScopeDepth,
+                              int SameHostDepth,
+                              int OffSiteDepth,
+                              int RetryAttemptIndex = 0);
 
     private record RootScope(string Host, string PathPrefix);
 
@@ -61,10 +66,6 @@ public class PageCrawler
     private readonly ILogger<PageCrawler> mLogger;
 
     private readonly IPageRepository mPageRepository;
-
-    // Per-crawl state: once a site returns 404 on stripped URLs
-    // but succeeds with the extension, we stop stripping.
-    private string? mSiteExtension;
 
     /// <summary>
     ///     Dry-run a crawl: actually fetch every page with Playwright,
@@ -374,11 +375,11 @@ public class PageCrawler
         }
 
         EnqueueDiscoveredLinks(links,
-                               visited,
+                               visited.Contains,
                                job,
                                rootScope,
                                entry,
-                               queue
+                               (child, _) => queue.Enqueue(child)
                               );
 
         if (job.FetchDelayMs > 0)
@@ -386,13 +387,255 @@ public class PageCrawler
     }
 
     /// <summary>
+    ///     Per-crawl mutable state shared by parallel worker tasks.
+    ///     One instance per <see cref="CrawlAsync"/> call.
+    ///     Two channels back the priority queue: <see cref="InScopeEntries"/>
+    ///     for URLs that match the root scope's path prefix, and
+    ///     <see cref="OffPathEntries"/> for everything else. Workers drain
+    ///     in-scope first so the source path makes progress even when the
+    ///     off-path queue explodes from marketing/locale links.
+    /// </summary>
+    private sealed class CrawlContext
+    {
+        public required ScrapeJob Job { get; init; }
+        public required RootScope RootScope { get; init; }
+        public required ChannelWriter<PageRecord> PageOutput { get; init; }
+        public required Channel<CrawlEntry> InScopeEntries { get; init; }
+        public required Channel<CrawlEntry> OffPathEntries { get; init; }
+        public required Channel<CrawlEntry> RetryEntries { get; init; }
+        public required ConcurrentDictionary<string, byte> Visited { get; init; }
+        public required ConcurrentDictionary<string, byte> ClonedRepos { get; init; }
+        public required CrawlBudget Budget { get; init; }
+        public required Action<int>? OnPageFetched { get; init; }
+        public required Action<int>? OnQueued { get; init; }
+        public required Action? OnFetchError { get; init; }
+        public required CancellationToken Token { get; init; }
+
+        /// <summary>
+        ///     URLs that 403'd in-scope on every retry attempt and were
+        ///     ultimately dropped. Surfaced for diagnostics so the caller
+        ///     can log or report which pages slipped through.
+        /// </summary>
+        public ConcurrentBag<string> DroppedInScopeUrls { get; } = new();
+
+        public string? SiteExtension { get; set; }
+
+        private int mInFlight;
+        private int mPageCount;
+
+        public int PageCount => Volatile.Read(ref mPageCount);
+        public int InFlightCount => Volatile.Read(ref mInFlight);
+
+        public int IncrementPageCount() => Interlocked.Increment(ref mPageCount);
+        public void IncrementInFlight() => Interlocked.Increment(ref mInFlight);
+        public int DecrementInFlight() => Interlocked.Decrement(ref mInFlight);
+
+        public void EnqueueChild(CrawlEntry entry, bool inScope)
+        {
+            ArgumentNullException.ThrowIfNull(entry);
+
+            IncrementInFlight();
+            var writer = inScope ? InScopeEntries.Writer : OffPathEntries.Writer;
+            if (!writer.TryWrite(entry))
+                DecrementInFlight();
+        }
+
+        /// <summary>
+        ///     Schedule a retry of <paramref name="entry"/> after the policy
+        ///     delay. In-flight is incremented immediately so the channels
+        ///     don't complete during the wait, then the entry is written to
+        ///     <see cref="RetryEntries"/> for the dedicated retry worker.
+        /// </summary>
+        public void ScheduleRetry(CrawlEntry entry)
+        {
+            ArgumentNullException.ThrowIfNull(entry);
+
+            var retryEntry = entry with { RetryAttemptIndex = entry.RetryAttemptIndex + 1 };
+            var delay = RetryPolicy.ComputeRetryDelay(entry.RetryAttemptIndex);
+
+            IncrementInFlight();
+
+            _ = Task.Run(async () =>
+                             {
+                                 try
+                                 {
+                                     await Task.Delay(delay, Token);
+                                     if (!RetryEntries.Writer.TryWrite(retryEntry))
+                                         DecrementInFlight();
+                                 }
+                                 catch(OperationCanceledException)
+                                 {
+                                     DecrementInFlight();
+                                 }
+                             }
+                       );
+        }
+
+        public void CompleteAllEntries()
+        {
+            InScopeEntries.Writer.TryComplete();
+            OffPathEntries.Writer.TryComplete();
+            RetryEntries.Writer.TryComplete();
+        }
+
+        public bool IsVisited(string url)
+        {
+            ArgumentException.ThrowIfNullOrEmpty(url);
+
+            bool result = Visited.ContainsKey(url);
+            return result;
+        }
+
+        /// <summary>
+        ///     Returns true when <paramref name="url"/> is out-of-scope and
+        ///     its host's <see cref="HostScopeFilter"/> has gated the URL's
+        ///     path prefix from a prior 403. In-scope URLs are never gated.
+        /// </summary>
+        public bool IsGated(string url)
+        {
+            ArgumentException.ThrowIfNullOrEmpty(url);
+
+            bool result = false;
+            if (!IsInRootScope(url, RootScope))
+            {
+                var uri = new Uri(url);
+                var filter = Budget.GetScopeFilter(uri.Host);
+                result = filter.IsGated(uri);
+            }
+
+            return result;
+        }
+    }
+
+    /// <summary>
+    ///     Fetch a single URL into a <see cref="PageRecord"/> without
+    ///     starting a BFS — used by the <c>add_page</c> top-up path. Goes
+    ///     through the same Playwright + 403 retry loop a regular crawl
+    ///     would use, but skips link extraction so we don't drag the rest
+    ///     of the site in. Persists the page record on success and
+    ///     returns it; returns null when retries are exhausted.
+    /// </summary>
+    public async Task<PageRecord?> FetchSinglePageAsync(string libraryId,
+                                                        string version,
+                                                        string url,
+                                                        CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(libraryId);
+        ArgumentException.ThrowIfNullOrEmpty(version);
+        ArgumentException.ThrowIfNullOrEmpty(url);
+
+        using var playwright = await Playwright.CreateAsync();
+        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+                                                                            {
+                                                                                Headless = true,
+                                                                                Args =
+                                                                                    [
+                                                                                        $"--user-agent={BrowserUserAgent}"
+                                                                                    ]
+                                                                            }
+                                                                       );
+
+        PageRecord? result = null;
+        int attempt = 0;
+        int maxAttempts = RetryPolicy.MaxRetryAttempts + 1;
+
+        while (result == null && attempt < maxAttempts)
+        {
+            if (attempt > 0)
+            {
+                var delay = RetryPolicy.ComputeRetryDelay(attempt - 1);
+                mLogger.LogInformation("Retrying single-page fetch of {Url} (attempt {Attempt}/{Max}) after {Delay}",
+                                       url,
+                                       attempt + 1,
+                                       maxAttempts,
+                                       delay
+                                      );
+                await Task.Delay(delay, ct);
+            }
+
+            result = await TryFetchSingleOnceAsync(browser, libraryId, version, url, ct);
+            attempt++;
+        }
+
+        if (result == null)
+            mLogger.LogWarning("Single-page fetch failed after {Attempts} attempts: {Url}", maxAttempts, url);
+
+        return result;
+    }
+
+    private async Task<PageRecord?> TryFetchSingleOnceAsync(IBrowser browser,
+                                                             string libraryId,
+                                                             string version,
+                                                             string url,
+                                                             CancellationToken ct)
+    {
+        PageRecord? result = null;
+        var page = await browser.NewPageAsync();
+        try
+        {
+            var response = await NavigateAndPreparePageAsync(page, url, ct);
+            if (response != null && response.Ok)
+                result = await BuildAndPersistPageRecordAsync(page, libraryId, version, url, ct);
+            else
+            {
+                int status = response?.Status ?? 0;
+                mLogger.LogWarning("Single-page fetch got status {Status} for {Url}", status, url);
+            }
+        }
+        catch(Exception ex) when(ex is not OperationCanceledException)
+        {
+            mLogger.LogError(ex, "Single-page fetch error for {Url}", url);
+        }
+        finally
+        {
+            await page.CloseAsync();
+        }
+
+        return result;
+    }
+
+    private async Task<PageRecord> BuildAndPersistPageRecordAsync(IPage page,
+                                                                    string libraryId,
+                                                                    string version,
+                                                                    string url,
+                                                                    CancellationToken ct)
+    {
+        string title = await page.TitleAsync();
+        await ExpandCollapsibleNavigationAsync(page);
+        string content = await ExtractMainContentAsync(page);
+
+        string contentHash = ComputeHash(content);
+        string urlHash = ComputeHash(url);
+
+        var record = new PageRecord
+                         {
+                             Id = $"{libraryId}/{version}/{urlHash[..12]}",
+                             LibraryId = libraryId,
+                             Version = version,
+                             Url = url,
+                             Title = title,
+                             Category = DocCategory.Unclassified,
+                             RawContent = content,
+                             FetchedAt = DateTime.UtcNow,
+                             ContentHash = contentHash
+                         };
+
+        await mPageRepository.UpsertPageAsync(record, ct);
+        return record;
+    }
+
+    /// <summary>
     ///     Crawl a documentation library starting from the root URL.
+    ///     Spawns up to <see cref="MaxParallelWorkers"/> concurrent workers
+    ///     that pull entries off a shared channel; each fetch is gated by a
+    ///     <see cref="HostRateLimiter"/> keyed on the URL's host.
     /// </summary>
     public async Task CrawlAsync(ScrapeJob job,
                                  ChannelWriter<PageRecord> output,
                                  IReadOnlySet<string>? resumeUrls = null,
                                  Action<int>? onPageFetched = null,
                                  Action<int>? onQueued = null,
+                                 Action? onFetchError = null,
                                  CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(job);
@@ -412,227 +655,548 @@ public class PageCrawler
         var rootUri = new Uri(job.RootUrl);
         var rootScope = ComputeRootScope(rootUri);
 
-        mSiteExtension = null;
-        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var ctx = new CrawlContext
+                      {
+                          Job = job,
+                          RootScope = rootScope,
+                          PageOutput = output,
+                          InScopeEntries = Channel.CreateUnbounded<CrawlEntry>(),
+                          OffPathEntries = Channel.CreateUnbounded<CrawlEntry>(),
+                          RetryEntries = Channel.CreateUnbounded<CrawlEntry>(),
+                          Visited = new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
+                          ClonedRepos = new ConcurrentDictionary<string, byte>(StringComparer.OrdinalIgnoreCase),
+                          Budget = new CrawlBudget(),
+                          OnPageFetched = onPageFetched,
+                          OnQueued = onQueued,
+                          OnFetchError = onFetchError,
+                          Token = ct
+                      };
+
         if (resumeUrls != null)
         {
             foreach(string resumeUrl in resumeUrls)
-                visited.Add(resumeUrl);
+                ctx.Visited.TryAdd(resumeUrl, value: 0);
             mLogger.LogInformation("Resume: seeded visited set with {Count} existing URLs", resumeUrls.Count);
         }
 
-        var clonedRepos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var queue = new Queue<CrawlEntry>();
         string normalizedRoot = NormalizeUrl(job.RootUrl) ?? job.RootUrl;
-        queue.Enqueue(new CrawlEntry(normalizedRoot, InScopeDepth: 0, SameHostDepth: 0, OffSiteDepth: 0));
-        var pageCount = 0;
+        var rootEntry = new CrawlEntry(normalizedRoot, InScopeDepth: 0, SameHostDepth: 0, OffSiteDepth: 0);
+        ctx.IncrementInFlight();
+        ctx.InScopeEntries.Writer.TryWrite(rootEntry);
 
-        while (queue.Count > 0 && !ct.IsCancellationRequested)
+        int workerCount = Math.Max(1, MaxParallelWorkers);
+        var workerTasks = new Task[workerCount + 1];
+        for(var i = 0; i < workerCount; i++)
+            workerTasks[i] = Task.Run(() => RunCrawlWorkerAsync(ctx, browser), ct);
+        workerTasks[workerCount] = Task.Run(() => RunRetryWorkerAsync(ctx, browser), ct);
+
+        try
         {
-            if (job.MaxPages > 0 && pageCount >= job.MaxPages)
-                break;
-
-            var entry = queue.Dequeue();
-            string url = entry.Url;
-
-            if (visited.Add(url))
-            {
-                int previousCount = pageCount;
-                pageCount = await ProcessCrawlEntryAsync(url,
-                                                         entry,
-                                                         job,
-                                                         rootScope,
-                                                         browser,
-                                                         visited,
-                                                         clonedRepos,
-                                                         queue,
-                                                         pageCount,
-                                                         output,
-                                                         ct
-                                                        );
-
-                if (pageCount > previousCount)
-                    onPageFetched?.Invoke(pageCount);
-                onQueued?.Invoke(queue.Count);
-            }
+            await Task.WhenAll(workerTasks);
+        }
+        finally
+        {
+            ctx.CompleteAllEntries();
         }
 
-        mLogger.LogInformation("Crawl complete for {LibraryId} v{Version}: {Count} pages",
+        if (ctx.DroppedInScopeUrls.Count > 0)
+        {
+            mLogger.LogWarning("Dropped {Count} in-scope URLs after exhausting retries: {Urls}",
+                               ctx.DroppedInScopeUrls.Count,
+                               string.Join(DroppedUrlSeparator, ctx.DroppedInScopeUrls)
+                              );
+        }
+
+        mLogger.LogInformation("Crawl complete for {LibraryId} v{Version}: {Count} pages, {Hosts} hosts, {Dropped} dropped",
                                job.LibraryId,
                                job.Version,
-                               pageCount
+                               ctx.PageCount,
+                               ctx.Budget.HostCount,
+                               ctx.DroppedInScopeUrls.Count
                               );
         output.Complete();
     }
 
-    private async Task<int> ProcessCrawlEntryAsync(string url,
-                                                   CrawlEntry entry,
-                                                   ScrapeJob job,
-                                                   RootScope rootScope,
-                                                   IBrowser browser,
-                                                   HashSet<string> visited,
-                                                   HashSet<string> clonedRepos,
-                                                   Queue<CrawlEntry> queue,
-                                                   int pageCount,
-                                                   ChannelWriter<PageRecord> output,
-                                                   CancellationToken ct)
+    private async Task RunCrawlWorkerAsync(CrawlContext ctx, IBrowser browser)
     {
-        int result = pageCount;
+        bool keepGoing = true;
+        while (keepGoing)
+            keepGoing = await TryProcessNextAsync(ctx, browser);
+    }
+
+    /// <summary>
+    ///     Attempt to dequeue and process one entry, preferring the in-scope
+    ///     channel. Returns false only when both channels are completed and
+    ///     drained, signalling the worker to exit.
+    /// </summary>
+    private async Task<bool> TryProcessNextAsync(CrawlContext ctx, IBrowser browser)
+    {
+        bool keepGoing;
+
+        if (ctx.InScopeEntries.Reader.TryRead(out var entry) ||
+            ctx.OffPathEntries.Reader.TryRead(out entry))
+        {
+            await HandleCrawlEntryAsync(entry, ctx, browser);
+            keepGoing = true;
+        }
+        else
+            keepGoing = await WaitForAvailabilityAsync(ctx);
+
+        return keepGoing;
+    }
+
+    /// <summary>
+    ///     Block until either channel signals readability, both channels
+    ///     complete, or cancellation fires. Returns true if more work may
+    ///     be available, false if both channels are drained.
+    /// </summary>
+    private static async Task<bool> WaitForAvailabilityAsync(CrawlContext ctx)
+    {
+        var inScopeWait = WaitOrFalseAsync(ctx.InScopeEntries.Reader, ctx.Token);
+        var offPathWait = WaitOrFalseAsync(ctx.OffPathEntries.Reader, ctx.Token);
+
+        var first = await Task.WhenAny(inScopeWait, offPathWait);
+        bool firstAvailable = await first;
+
+        bool result;
+        if (firstAvailable)
+            result = true;
+        else
+        {
+            var other = first == inScopeWait ? offPathWait : inScopeWait;
+            result = await other;
+        }
+
+        return result;
+    }
+
+    private static async Task<bool> WaitOrFalseAsync(ChannelReader<CrawlEntry> reader, CancellationToken ct)
+    {
+        bool result;
+        try
+        {
+            result = await reader.WaitToReadAsync(ct);
+        }
+        catch(OperationCanceledException)
+        {
+            result = false;
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    ///     Dedicated worker that drains <see cref="CrawlContext.RetryEntries"/>
+    ///     sequentially, sleeping <see cref="RetryPolicy.MinDelayBetweenRetriesMs"/>
+    ///     between attempts so the WAF sees a slow trickle rather than a burst.
+    ///     Runs alongside the main worker pool — main work isn't blocked on
+    ///     retries, but retries also don't compete with main work for slots.
+    /// </summary>
+    private async Task RunRetryWorkerAsync(CrawlContext ctx, IBrowser browser)
+    {
+        bool keepReading = true;
+        while (keepReading)
+        {
+            try
+            {
+                keepReading = await ctx.RetryEntries.Reader.WaitToReadAsync(ctx.Token);
+            }
+            catch(OperationCanceledException)
+            {
+                keepReading = false;
+            }
+
+            if (keepReading && ctx.RetryEntries.Reader.TryRead(out var entry))
+            {
+                await HandleRetryEntryAsync(entry, ctx, browser);
+                keepReading = await DelayBetweenRetriesAsync(ctx.Token);
+            }
+        }
+    }
+
+    private static async Task<bool> DelayBetweenRetriesAsync(CancellationToken ct)
+    {
+        bool result = true;
+        try
+        {
+            await Task.Delay(RetryPolicy.MinDelayBetweenRetriesMs, ct);
+        }
+        catch(OperationCanceledException)
+        {
+            result = false;
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    ///     Process a retry attempt without re-checking <c>Visited</c> or the
+    ///     gated-path filter — both were satisfied on the original attempt.
+    /// </summary>
+    private async Task HandleRetryEntryAsync(CrawlEntry entry, CrawlContext ctx, IBrowser browser)
+    {
+        try
+        {
+            await ProcessCrawlEntryAsync(entry, ctx, browser);
+        }
+        catch(Exception ex) when(ex is not OperationCanceledException)
+        {
+            mLogger.LogError(ex,
+                             "Retry worker error processing {Url} (retry {Attempt})",
+                             entry.Url,
+                             entry.RetryAttemptIndex
+                            );
+        }
+        finally
+        {
+            int remaining = ctx.DecrementInFlight();
+            if (remaining == 0)
+                ctx.CompleteAllEntries();
+
+            ctx.OnQueued?.Invoke(ctx.InFlightCount);
+        }
+    }
+
+    private async Task HandleCrawlEntryAsync(CrawlEntry entry, CrawlContext ctx, IBrowser browser)
+    {
+        try
+        {
+            bool overLimit = ctx.Job.MaxPages > 0 && ctx.PageCount >= ctx.Job.MaxPages;
+            bool gated = !overLimit && ctx.IsGated(entry.Url);
+            bool firstVisit = !overLimit && !gated && ctx.Visited.TryAdd(entry.Url, value: 0);
+            if (firstVisit)
+                await ProcessCrawlEntryAsync(entry, ctx, browser);
+        }
+        catch(Exception ex) when(ex is not OperationCanceledException)
+        {
+            mLogger.LogError(ex, "Worker error processing {Url}", entry.Url);
+        }
+        finally
+        {
+            int remaining = ctx.DecrementInFlight();
+            if (remaining == 0)
+                ctx.CompleteAllEntries();
+
+            ctx.OnQueued?.Invoke(ctx.InFlightCount);
+        }
+    }
+
+    private async Task ProcessCrawlEntryAsync(CrawlEntry entry, CrawlContext ctx, IBrowser browser)
+    {
+        string url = entry.Url;
 
         switch(true)
         {
-            case true when !IsAllowed(url, job):
+            case true when !IsAllowed(url, ctx.Job):
                 break;
             case true when GitHubRepoScraper.TryParseGitHubUrl(url, out string owner, out string repo):
-                var repoKey = $"{owner}/{repo}";
-                if (clonedRepos.Add(repoKey))
+                string repoKey = $"{owner}/{repo}";
+                if (ctx.ClonedRepos.TryAdd(repoKey, value: 0))
                 {
                     mLogger.LogInformation("Delegating to GitHub scraper for {Repo}", repoKey);
-                    await mGitHubScraper.ScrapeRepositoryAsync(owner, repo, job, output, ct);
+                    await mGitHubScraper.ScrapeRepositoryAsync(owner, repo, ctx.Job, ctx.PageOutput, ctx.Token);
                 }
 
                 break;
             default:
-                result = await ProcessCrawlScopeAsync(url,
-                                                      entry,
-                                                      job,
-                                                      rootScope,
-                                                      browser,
-                                                      visited,
-                                                      queue,
-                                                      pageCount,
-                                                      output,
-                                                      ct
-                                                     );
+                await ProcessCrawlScopeAsync(entry, ctx, browser);
                 break;
         }
-
-        return result;
     }
 
-    private async Task<int> ProcessCrawlScopeAsync(string url,
-                                                   CrawlEntry entry,
-                                                   ScrapeJob job,
-                                                   RootScope rootScope,
-                                                   IBrowser browser,
-                                                   HashSet<string> visited,
-                                                   Queue<CrawlEntry> queue,
-                                                   int pageCount,
-                                                   ChannelWriter<PageRecord> output,
-                                                   CancellationToken ct)
+    private async Task ProcessCrawlScopeAsync(CrawlEntry entry, CrawlContext ctx, IBrowser browser)
     {
-        bool inScope = IsInRootScope(url, rootScope);
-        bool sameHost = !inScope && IsSameHost(url, rootScope);
-        bool depthExceeded = inScope  ? job.InScopeDepth > 0 && entry.InScopeDepth >= job.InScopeDepth :
-                             sameHost ? entry.SameHostDepth >= job.SameHostDepth :
-                                        entry.OffSiteDepth >= job.OffSiteDepth;
+        string url = entry.Url;
+        bool inScope = IsInRootScope(url, ctx.RootScope);
+        bool sameHost = !inScope && IsSameHost(url, ctx.RootScope);
+        bool depthExceeded = inScope  ? ctx.Job.InScopeDepth > 0 && entry.InScopeDepth >= ctx.Job.InScopeDepth :
+                             sameHost ? entry.SameHostDepth >= ctx.Job.SameHostDepth :
+                                        entry.OffSiteDepth >= ctx.Job.OffSiteDepth;
 
-        int result = pageCount;
         if (depthExceeded)
         {
             int displayDepth = inScope  ? entry.InScopeDepth :
                                sameHost ? entry.SameHostDepth : entry.OffSiteDepth;
-            mLogger.LogDebug("Skipping {Url} â€” depth {Depth} exceeded", url, displayDepth);
+            mLogger.LogDebug("Skipping {Url} - depth {Depth} exceeded", url, displayDepth);
         }
         else
-            result = await FetchCrawlPageAsync(url,
-                                               entry,
-                                               job,
-                                               rootScope,
-                                               browser,
-                                               visited,
-                                               queue,
-                                               pageCount,
-                                               inScope,
-                                               output,
-                                               ct
-                                              );
-
-        return result;
+            await FetchCrawlPageAsync(entry, inScope, ctx, browser);
     }
 
-    private async Task<int> FetchCrawlPageAsync(string url,
-                                                CrawlEntry entry,
-                                                ScrapeJob job,
-                                                RootScope rootScope,
-                                                IBrowser browser,
-                                                HashSet<string> visited,
-                                                Queue<CrawlEntry> queue,
-                                                int pageCount,
-                                                bool inScope,
-                                                ChannelWriter<PageRecord> output,
-                                                CancellationToken ct)
+    private async Task FetchCrawlPageAsync(CrawlEntry entry, bool inScope, CrawlContext ctx, IBrowser browser)
     {
-        int result = pageCount;
-
-        bool fetchSameHost = !inScope && IsSameHost(url, rootScope);
+        string url = entry.Url;
+        bool fetchSameHost = !inScope && IsSameHost(url, ctx.RootScope);
         int fetchDepth = fetchSameHost ? entry.SameHostDepth : entry.OffSiteDepth;
         mLogger.LogInformation("Fetching ({Count}) [{Scope} d={Depth}]: {Url}",
-                               pageCount + 1,
+                               ctx.PageCount + 1,
                                inScope ? InScopeLabel : OutOfScopeLabel,
                                fetchDepth,
                                url
                               );
 
+        var hostUri = new Uri(url);
+        var limiter = ctx.Budget.GetLimiter(hostUri.Host);
+
+        using var slot = await limiter.AcquireAsync(ctx.Token);
+
         var page = await browser.NewPageAsync();
         try
         {
             string fetchUrl = url;
-            var response = await NavigateAndPreparePageAsync(page, fetchUrl, ct);
+            var response = await NavigateAndPreparePageAsync(page, fetchUrl, ctx.Token);
 
-            // Retry with known extensions if 404 - site may require .html, .htm, etc.
-            if (response != null && response.Status == HttpNotFound && mSiteExtension == null)
-                (page, response, fetchUrl) = await RetryWithExtensionsAsync(url, page, browser, ct);
+            if (response != null && response.Status == HttpNotFound && ctx.SiteExtension == null)
+                (page, response, fetchUrl) = await RetryWithExtensionsAsync(url, page, browser, ctx, ctx.Token);
 
-            if (response != null && response.Ok)
-            {
-                string title = await page.TitleAsync();
-                await ExpandCollapsibleNavigationAsync(page);
-                string content = await ExtractMainContentAsync(page);
-                var links = await ExtractLinksAsync(page);
-
-                string contentHash = ComputeHash(content);
-                string urlHash = ComputeHash(fetchUrl);
-
-                var pageRecord = new PageRecord
-                                     {
-                                         Id = $"{job.LibraryId}/{job.Version}/{urlHash[..12]}",
-                                         LibraryId = job.LibraryId,
-                                         Version = job.Version,
-                                         Url = fetchUrl,
-                                         Title = title,
-                                         Category = DocCategory.Unclassified,
-                                         RawContent = content,
-                                         FetchedAt = DateTime.UtcNow,
-                                         ContentHash = contentHash
-                                     };
-
-                await mPageRepository.UpsertPageAsync(pageRecord, ct);
-                result = pageCount + 1;
-                await output.WriteAsync(pageRecord, ct);
-
-                EnqueueDiscoveredLinks(links,
-                                       visited,
-                                       job,
-                                       rootScope,
-                                       entry,
-                                       queue,
-                                       mSiteExtension != null
-                                      );
-
-                if (job.FetchDelayMs > 0)
-                    await Task.Delay(job.FetchDelayMs, ct);
-            }
-            else
-                mLogger.LogWarning("Failed to fetch {Url}: {Status}", url, response?.Status);
+            await DispatchFetchOutcomeAsync(response, page, fetchUrl, entry, ctx, limiter, url);
         }
-        catch(Exception ex)
+        catch(Exception ex) when(ex is not OperationCanceledException)
         {
+            limiter.ReportTransientError();
+            ctx.OnFetchError?.Invoke();
             mLogger.LogError(ex, "Error fetching {Url}", url);
         }
         finally
         {
             await page.CloseAsync();
+        }
+    }
+
+    private async Task DispatchFetchOutcomeAsync(IResponse? response,
+                                                  IPage page,
+                                                  string fetchUrl,
+                                                  CrawlEntry entry,
+                                                  CrawlContext ctx,
+                                                  HostRateLimiter limiter,
+                                                  string originalUrl)
+    {
+        if (response == null)
+        {
+            limiter.ReportTransientError();
+            ctx.OnFetchError?.Invoke();
+            mLogger.LogWarning("No response from {Url}", originalUrl);
+        }
+        else
+            await DispatchKnownResponseAsync(response, page, fetchUrl, entry, ctx, limiter, originalUrl);
+    }
+
+    private async Task DispatchKnownResponseAsync(IResponse response,
+                                                   IPage page,
+                                                   string fetchUrl,
+                                                   CrawlEntry entry,
+                                                   CrawlContext ctx,
+                                                   HostRateLimiter limiter,
+                                                   string originalUrl)
+    {
+        bool inScope = IsInRootScope(originalUrl, ctx.RootScope);
+
+        switch(true)
+        {
+            case true when response.Ok:
+                limiter.ReportSuccess();
+                await CompleteSuccessfulFetchAsync(page, fetchUrl, entry, ctx);
+                break;
+            case true when HostRateLimiter.IsRateLimitStatus(response.Status):
+                await HandleRateLimitedAsync(response, limiter, ctx, originalUrl);
+                break;
+            case true when HostRateLimiter.IsForbiddenStatus(response.Status) && inScope:
+                await HandleInScopeForbiddenAsync(response, entry, ctx, limiter, originalUrl);
+                break;
+            case true when HostRateLimiter.IsForbiddenStatus(response.Status):
+                HandleGatedPath(ctx, originalUrl);
+                break;
+            default:
+                limiter.ReportTransientError();
+                ctx.OnFetchError?.Invoke();
+                mLogger.LogWarning("Failed to fetch {Url}: {Status}", originalUrl, response.Status);
+                break;
+        }
+    }
+
+    /// <summary>
+    ///     Handle a 403 on an in-scope URL. The fetcher still slows the
+    ///     limiter (the 403 might be rate-driven), but the page itself
+    ///     gets queued for sequential retry on the dedicated retry worker
+    ///     instead of being dropped immediately. After
+    ///     <see cref="RetryPolicy.MaxRetryAttempts"/> failed retries the
+    ///     URL is added to <see cref="CrawlContext.DroppedInScopeUrls"/>
+    ///     and the error count ticks once.
+    /// </summary>
+    private async Task HandleInScopeForbiddenAsync(IResponse response,
+                                                   CrawlEntry entry,
+                                                   CrawlContext ctx,
+                                                   HostRateLimiter limiter,
+                                                   string originalUrl)
+    {
+        var retryAfter = await TryReadRetryAfterAsync(response);
+        limiter.ReportRateLimited(retryAfter);
+
+        if (entry.RetryAttemptIndex < RetryPolicy.MaxRetryAttempts)
+        {
+            ctx.ScheduleRetry(entry);
+            mLogger.LogWarning("In-scope 403 on {Url}; scheduling retry {Next} of {Max} (retry-after {RetryAfter})",
+                               originalUrl,
+                               entry.RetryAttemptIndex + 1,
+                               RetryPolicy.MaxRetryAttempts,
+                               retryAfter
+                              );
+        }
+        else
+        {
+            ctx.DroppedInScopeUrls.Add(originalUrl);
+            ctx.OnFetchError?.Invoke();
+            await LogForbiddenDiagnosticsAsync(response, originalUrl, entry.RetryAttemptIndex + 1);
+        }
+    }
+
+    /// <summary>
+    ///     On a final-drop in-scope 403, capture WAF identifying headers and
+    ///     a body snippet so we can see what's blocking us. Cloudflare,
+    ///     Akamai, AWS WAF, and CloudFront each leave fingerprints
+    ///     (server header, cf-ray, via, x-amzn-RequestId) that point at
+    ///     which layer rejected the request.
+    /// </summary>
+    private async Task LogForbiddenDiagnosticsAsync(IResponse response, string url, int totalAttempts)
+    {
+        string serverHeader = string.Empty;
+        string cfRay = string.Empty;
+        string via = string.Empty;
+        string xAmznRequestId = string.Empty;
+        string xAmzCfId = string.Empty;
+        string bodySnippet = string.Empty;
+
+        try
+        {
+            var headers = await response.AllHeadersAsync();
+            serverHeader = HeaderOrEmpty(headers, ServerHeader);
+            cfRay = HeaderOrEmpty(headers, CfRayHeader);
+            via = HeaderOrEmpty(headers, ViaHeader);
+            xAmznRequestId = HeaderOrEmpty(headers, XAmznRequestIdHeader);
+            xAmzCfId = HeaderOrEmpty(headers, XAmzCfIdHeader);
+        }
+        catch(PlaywrightException)
+        {
+        }
+
+        try
+        {
+            string body = await response.TextAsync();
+            int take = Math.Min(body.Length, ForbiddenBodySnippetMaxChars);
+            bodySnippet = body[..take].Replace('\n', ' ').Replace('\r', ' ');
+        }
+        catch(PlaywrightException)
+        {
+        }
+
+        mLogger.LogWarning("Dropping in-scope {Url} after {Attempts} attempts (still 403). " +
+                           "Server={Server} CF-RAY={CfRay} Via={Via} X-Amzn-RequestId={AmznId} " +
+                           "X-Amz-Cf-Id={AmzCfId} Body[0..{Take}]={Body}",
+                           url,
+                           totalAttempts,
+                           serverHeader,
+                           cfRay,
+                           via,
+                           xAmznRequestId,
+                           xAmzCfId,
+                           bodySnippet.Length,
+                           bodySnippet
+                          );
+    }
+
+    private static string HeaderOrEmpty(IDictionary<string, string> headers, string key) =>
+        headers.TryGetValue(key, out string? value) ? value : string.Empty;
+
+    private async Task HandleRateLimitedAsync(IResponse response,
+                                              HostRateLimiter limiter,
+                                              CrawlContext ctx,
+                                              string originalUrl)
+    {
+        var retryAfter = await TryReadRetryAfterAsync(response);
+        limiter.ReportRateLimited(retryAfter);
+        ctx.OnFetchError?.Invoke();
+        mLogger.LogWarning("Backoff fetching {Url}: status {Status}, retry-after {RetryAfter}",
+                           originalUrl,
+                           response.Status,
+                           retryAfter
+                          );
+    }
+
+    /// <summary>
+    ///     Handle a 403 on an out-of-scope URL. The response means "this path
+    ///     is gated", not "you're hitting me too hard" — gate the URL's first
+    ///     path segment for the host and let the limiter keep its concurrency
+    ///     so unrelated working paths on the same host stay fast.
+    /// </summary>
+    private void HandleGatedPath(CrawlContext ctx, string originalUrl)
+    {
+        var uri = new Uri(originalUrl);
+        var filter = ctx.Budget.GetScopeFilter(uri.Host);
+        filter.GatePrefixOf(uri);
+        ctx.OnFetchError?.Invoke();
+        mLogger.LogWarning("Gating path {Prefix} on {Host} (403 on {Url})",
+                           HostScopeFilter.ExtractFirstSegment(uri),
+                           uri.Host,
+                           originalUrl
+                          );
+    }
+
+    private async Task CompleteSuccessfulFetchAsync(IPage page,
+                                                    string fetchUrl,
+                                                    CrawlEntry entry,
+                                                    CrawlContext ctx)
+    {
+        string title = await page.TitleAsync();
+        await ExpandCollapsibleNavigationAsync(page);
+        string content = await ExtractMainContentAsync(page);
+        var links = await ExtractLinksAsync(page);
+
+        string contentHash = ComputeHash(content);
+        string urlHash = ComputeHash(fetchUrl);
+
+        var pageRecord = new PageRecord
+                             {
+                                 Id = $"{ctx.Job.LibraryId}/{ctx.Job.Version}/{urlHash[..12]}",
+                                 LibraryId = ctx.Job.LibraryId,
+                                 Version = ctx.Job.Version,
+                                 Url = fetchUrl,
+                                 Title = title,
+                                 Category = DocCategory.Unclassified,
+                                 RawContent = content,
+                                 FetchedAt = DateTime.UtcNow,
+                                 ContentHash = contentHash
+                             };
+
+        await mPageRepository.UpsertPageAsync(pageRecord, ctx.Token);
+        int newCount = ctx.IncrementPageCount();
+        await ctx.PageOutput.WriteAsync(pageRecord, ctx.Token);
+
+        EnqueueDiscoveredLinks(links,
+                               ctx.IsVisited,
+                               ctx.Job,
+                               ctx.RootScope,
+                               entry,
+                               ctx.EnqueueChild,
+                               ctx.SiteExtension != null
+                              );
+
+        ctx.OnPageFetched?.Invoke(newCount);
+
+        if (ctx.Job.FetchDelayMs > 0)
+            await Task.Delay(ctx.Job.FetchDelayMs, ctx.Token);
+    }
+
+    private static async Task<TimeSpan?> TryReadRetryAfterAsync(IResponse response)
+    {
+        TimeSpan? result = null;
+        try
+        {
+            var headers = await response.AllHeadersAsync();
+            if (headers.TryGetValue(RetryAfterHeader, out string? value))
+                result = CrawlBudget.ParseRetryAfter(value);
+        }
+        catch(PlaywrightException)
+        {
         }
 
         return result;
@@ -788,22 +1352,24 @@ public class PageCrawler
     /// <summary>
     ///     Normalize and enqueue discovered links from a fetched page.
     ///     Applies 3-tier depth assignment:
-    ///     in root scope â†’ both depths reset to 0;
-    ///     same host, different path â†’ increment SameHostDepth;
-    ///     different host â†’ increment OffSiteDepth.
+    ///     in root scope - both depths reset to 0;
+    ///     same host, different path - increment SameHostDepth;
+    ///     different host - increment OffSiteDepth.
+    ///     The enqueue callback receives the in-scope flag so the caller
+    ///     can route entries to a priority channel.
     /// </summary>
     private static void EnqueueDiscoveredLinks(IReadOnlyList<string> links,
-                                               HashSet<string> visited,
+                                               Func<string, bool> isVisited,
                                                ScrapeJob job,
                                                RootScope rootScope,
                                                CrawlEntry parentEntry,
-                                               Queue<CrawlEntry> queue,
+                                               Action<CrawlEntry, bool> enqueue,
                                                bool keepExtension = false)
     {
         foreach(string normalized in links
                                      .Select(u => NormalizeUrl(u, keepExtension))
                                      .OfType<string>()
-                                     .Where(n => !visited.Contains(n) && IsAllowed(n, job)))
+                                     .Where(n => !isVisited(n) && IsAllowed(n, job)))
         {
             bool linkInScope = IsInRootScope(normalized, rootScope);
             bool linkSameHost = !linkInScope && IsSameHost(normalized, rootScope);
@@ -824,7 +1390,7 @@ public class PageCrawler
                                                  )
                 };
 
-            queue.Enqueue(child);
+            enqueue(child, linkInScope);
         }
     }
 
@@ -1186,7 +1752,7 @@ public class PageCrawler
     ///     Returns updated page, response, and fetch URL.
     /// </summary>
     private async Task<(IPage Page, IResponse? Response, string FetchUrl)>
-        RetryWithExtensionsAsync(string url, IPage page, IBrowser browser, CancellationToken ct)
+        RetryWithExtensionsAsync(string url, IPage page, IBrowser browser, CrawlContext ctx, CancellationToken ct)
     {
         string fetchUrl = url;
         IResponse? response = null;
@@ -1201,7 +1767,7 @@ public class PageCrawler
 
             if (response != null && response.Ok)
             {
-                mSiteExtension = ext;
+                ctx.SiteExtension = ext;
                 fetchUrl = retryUrl;
                 mLogger.LogInformation("Site requires {Ext} extensions, switching to extension-preserving mode", ext);
                 break;
@@ -1259,6 +1825,16 @@ public class PageCrawler
     private const int RegexTimeoutMs = 100;
     private const int ErrorMessageMaxLength = 200;
     private const int HttpNotFound = 404;
+    private const string RetryAfterHeader = "retry-after";
+    private const string DroppedUrlSeparator = ", ";
+    private const int ForbiddenBodySnippetMaxChars = 400;
+
+    private const string ServerHeader = "server";
+    private const string CfRayHeader = "cf-ray";
+    private const string ViaHeader = "via";
+    private const string XAmznRequestIdHeader = "x-amzn-requestid";
+    private const string XAmzCfIdHeader = "x-amz-cf-id";
+    private const int MaxParallelWorkers = 8;
 
     private const string BrowserUserAgent =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";

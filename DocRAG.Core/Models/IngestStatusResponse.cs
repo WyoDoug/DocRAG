@@ -17,9 +17,16 @@ namespace DocRAG.Core.Models;
 public record IngestStatusResponse
 {
     /// <summary>
-    ///     The state machine status.
+    ///     The state machine status as a numeric enum value.
     /// </summary>
     public required IngestStatus Status { get; init; }
+
+    /// <summary>
+    ///     Human-readable name of <see cref="Status"/> (e.g. "InProgress",
+    ///     "ReadyToScrape"). Always populated alongside the numeric Status
+    ///     so MCP-facing consumers don't have to memorize the enum values.
+    /// </summary>
+    public string StatusName => Status.ToString();
 
     /// <summary>
     ///     Resolved library id (may be inferred from URL when not supplied).

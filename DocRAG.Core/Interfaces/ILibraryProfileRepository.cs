@@ -32,8 +32,9 @@ public interface ILibraryProfileRepository
 
     /// <summary>
     ///     Delete a profile. Used by tests and force-refresh paths.
+    ///     Returns the count of deleted documents.
     /// </summary>
-    Task DeleteAsync(string libraryId, string version, CancellationToken ct = default);
+    Task<long> DeleteAsync(string libraryId, string version, CancellationToken ct = default);
 
     /// <summary>
     ///     List every cached profile. Used by diagnostics.
