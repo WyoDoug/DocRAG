@@ -18,7 +18,6 @@ AI coding assistants are limited by their training cutoff and context window. Wh
 
 ```
 Documentation Sites          SaddleRAG Pipeline                    AI Assistants
-==================          ===============++++                    ==============
 
 docs.example.com  --+
                     |      +-------------+
@@ -50,7 +49,7 @@ learn.microsoft   --+      +------+------+
 
 ## Quick Start (Windows Installer)
 
-The fastest way to get SaddleRAG running is the MSI installer from [GitHub Releases](https://github.com/WyoDoug/SaddleRAG/releases). It installs SaddleRAG as a Windows service, configures connections to MongoDB and Ollama, and starts automatically.
+The fastest way to get SaddleRAG running is the MSI installer from [GitHub Releases](https://github.com/JackalopeTechnologies/saddlerag/releases). It installs SaddleRAG as a Windows service, configures connections to MongoDB and Ollama, and starts automatically.
 
 SaddleRAG requires two free, open-source tools as prerequisites. Both are available as community editions at no cost.
 
@@ -63,7 +62,7 @@ MongoDB stores all scraped documentation, chunks, and vector embeddings.
 3. Keep the default settings: **port 27017**, **Run as a Service** checked
 4. After install, verify it's running: open a terminal and run `mongosh` -- you should see a connection prompt
 
-> **Using Docker or a remote server?** No problem. The SaddleRAG installer lets you enter any MongoDB connection string (e.g. `mongodb://your-server:27017`). You can also run MongoDB in Docker: `docker run -d -p 27017:27017 --name docrag-mongo mongo:latest`
+> **Using Docker or a remote server?** No problem. The SaddleRAG installer lets you enter any MongoDB connection string (e.g. `mongodb://your-server:27017`). You can also run MongoDB in Docker: `docker run -d -p 27017:27017 --name saddlerag-mongo mongo:latest`
 
 ### Step 2: Install Ollama (free)
 
@@ -81,11 +80,11 @@ SaddleRAG automatically pulls the required models on first use:
 
 ### Step 3: Install SaddleRAG
 
-1. Download `SaddleRAG.Mcp.msi` from the [latest release](https://github.com/WyoDoug/SaddleRAG/releases/latest)
+1. Download `SaddleRAG.Mcp.msi` from the [latest release](https://github.com/JackalopeTechnologies/saddlerag/releases/latest)
 2. Run the installer
 3. **MongoDB Configuration** -- the installer defaults to `mongodb://localhost:27017` with database `SaddleRAG`. Use the **Test Connection** button to verify MongoDB is reachable. If your MongoDB is on a different host, enter the connection string. **Reset to Local Defaults** reverts to the standard local settings.
 4. **Ollama Configuration** -- defaults to `http://localhost:11434`. Use **Test Connection** to verify. Change only if Ollama is running on another machine.
-5. Click **Install** -- files are copied to `Program Files\SaddleRAG\SaddleRAG.Mcp`, your connection settings are written to `appsettings.json`, and the **DocRAGMcp** Windows service starts automatically.
+5. Click **Install** -- files are copied to `Program Files\SaddleRAG\SaddleRAG.Mcp`, your connection settings are written to `appsettings.json`, and the **SaddleRAGMcp** Windows service starts automatically.
 
 > **Don't have the prerequisites yet?** The installer includes **Download** buttons on each configuration page that open your browser to the MongoDB and Ollama download pages. Install them, then click **Test Connection** to verify before proceeding.
 
@@ -96,7 +95,7 @@ Add this to your MCP client configuration. For **Claude Code**, create a `.mcp.j
 ```json
 {
   "mcpServers": {
-    "docrag": {
+    "saddlerag": {
       "type": "http",
       "url": "http://localhost:6100/mcp",
       "timeout": 60
@@ -120,7 +119,7 @@ The assistant will use the `scrape_docs` tool to index the site.
 ### Verify the Service
 
 - **Health check**: visit `http://localhost:6100/health` in a browser
-- **Service status**: run `Get-Service DocRAGMcp` in PowerShell
+- **Service status**: run `Get-Service SaddleRAGMcp` in PowerShell
 - **Logs**: check `%ProgramData%\SaddleRAG\logs\` or use the `get_server_logs` MCP tool
 
 ## Quick Start (Developer / Build from Source)
@@ -138,7 +137,7 @@ If you want to build and run from source instead of the MSI:
 ### Build and Run
 
 ```bash
-git clone https://github.com/WyoDoug/SaddleRAG.git
+git clone https://github.com/JackalopeTechnologies/saddlerag.git
 cd SaddleRAG
 dotnet build SaddleRAG.slnx
 dotnet run --project SaddleRAG.Mcp
@@ -153,7 +152,7 @@ Add to `.mcp.json` in your project root:
 ```json
 {
   "mcpServers": {
-    "docrag": {
+    "saddlerag": {
       "type": "http",
       "url": "http://localhost:6100/mcp",
       "timeout": 60
@@ -224,7 +223,7 @@ dotnet build SaddleRAG.Cli/SaddleRAG.Cli.csproj
 
 **Ingest a documentation library:**
 ```bash
-docrag ingest \
+saddlerag ingest \
   --root-url https://docs.example.com/ \
   --library-id example-lib \
   --version 2.0 \
@@ -236,7 +235,7 @@ docrag ingest \
 
 **Dry-run a scrape (no database writes):**
 ```bash
-docrag dryrun \
+saddlerag dryrun \
   --root-url https://docs.example.com/ \
   --allowed "docs.example.com" \
   --max-pages 200
@@ -244,34 +243,34 @@ docrag dryrun \
 
 **Inspect a page's link/sidebar structure (useful for tuning URL patterns):**
 ```bash
-docrag inspect --url https://docs.example.com/getting-started
+saddlerag inspect --url https://docs.example.com/getting-started
 ```
 
 **List indexed libraries:**
 ```bash
-docrag list
+saddlerag list
 ```
 
 **Show ingestion status:**
 ```bash
-docrag status --library-id example-lib
+saddlerag status --library-id example-lib
 ```
 
 **Re-classify pages with the LLM (fix unclassified pages):**
 ```bash
-docrag reclassify --library-id example-lib
-docrag reclassify --all  # Reclassify everything, even already-classified pages
+saddlerag reclassify --library-id example-lib
+saddlerag reclassify --all  # Reclassify everything, even already-classified pages
 ```
 
 **Scan project dependencies and auto-index:**
 ```bash
-docrag scan --path ./MyProject.sln
-docrag scan --path ./package.json --profile company
+saddlerag scan --path ./MyProject.sln
+saddlerag scan --path ./package.json --profile company
 ```
 
 **Manage database profiles:**
 ```bash
-docrag profile list
+saddlerag profile list
 ```
 
 ## Configuration
@@ -291,7 +290,7 @@ SaddleRAG supports multiple MongoDB databases via named profiles. Configure them
         "Description": "Local development database"
       },
       "company": {
-        "ConnectionString": "mongodb://docrag.internal.company.com:27017",
+        "ConnectionString": "mongodb://saddlerag.internal.company.com:27017",
         "DatabaseName": "SaddleRAG",
         "Description": "Shared company documentation database"
       }
@@ -322,10 +321,10 @@ Every MCP tool accepts an optional `profile` parameter to target a specific data
 
 ### Environment Variables
 
-All settings can be overridden via environment variables prefixed with `DOCRAG_`:
+All settings can be overridden via environment variables prefixed with `SADDLERAG_`:
 
 ```bash
-DOCRAG_MONGODB_PROFILE=company          # Override active profile
+SADDLERAG_MONGODB_PROFILE=company          # Override active profile
 ASPNETCORE_ENVIRONMENT=Development      # Enable dev settings (disables re-ranking)
 ```
 

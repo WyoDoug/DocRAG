@@ -640,8 +640,8 @@ dotnet_diagnostic.STY0004.severity=suggestion
 dotnet_diagnostic.STY0008.severity=suggestion
 dotnet_diagnostic.NUM0002.severity=suggestion
 
-[{DocRAG.Tests/**.cs,*Tests/*.cs,*Tests/**/*.cs}]
-# Relax rules in test projects (DocRAG.Tests pattern)
+[{SaddleRAG.Tests/**.cs,*Tests/*.cs,*Tests/**/*.cs}]
+# Relax rules in test projects (SaddleRAG.Tests pattern)
 dotnet_diagnostic.STR0002.severity=suggestion
 dotnet_diagnostic.STR0005.severity=suggestion
 dotnet_diagnostic.STR0010.severity=suggestion

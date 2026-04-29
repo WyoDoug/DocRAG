@@ -3,7 +3,7 @@
 ##
 ## Get latest from `dotnet new gitignore`
 
-# DocRAG project-specific
+# SaddleRAG project-specific
 Scratch/
 .claude/
 playwright-tmp/

@@ -16,32 +16,32 @@
 
 | File | Purpose | Action |
 |---|---|---|
-| `DocRAG.Core/Enums/SymbolRejectionReason.cs` | 6-value enum naming each reject path | **Create** |
-| `DocRAG.Core/Models/ExcludedSymbol.cs` | Persistable record for a rejected token + samples | **Create** |
-| `DocRAG.Core/Models/LibraryProfile.cs` | Add `Stoplist` field, bump `CurrentSchemaVersion` to 2 | **Modify** |
-| `DocRAG.Core/Models/RescrubResult.cs` | Add `ExcludedCount` and `Hints` fields | **Modify** |
-| `DocRAG.Core/Interfaces/IExcludedSymbolsRepository.cs` | Repository contract | **Create** |
-| `DocRAG.Database/DocRagDbContext.cs` | Register `ExcludedSymbols` collection + indexes | **Modify** |
-| `DocRAG.Database/Repositories/ExcludedSymbolsRepository.cs` | Mongo impl of the repo | **Create** |
-| `DocRAG.Database/Repositories/RepositoryFactory.cs` | Add `GetExcludedSymbolsRepository(profile)` | **Modify** |
-| `DocRAG.Database/ServiceCollectionExtensions.cs` | DI registration for the new repo | **Modify** |
-| `DocRAG.Ingestion/Symbols/Stoplist.cs` | Add `StoplistMatch` enum + profile-aware `Match` overload | **Modify** |
-| `DocRAG.Ingestion/Symbols/RejectedToken.cs` | Per-rejection record returned by extractor | **Create** |
-| `DocRAG.Ingestion/Symbols/ExtractedSymbols.cs` | Add `Rejected` field | **Modify** |
-| `DocRAG.Ingestion/Symbols/SymbolExtractor.cs` | Return rejections; `IsAdmissible` becomes reason-returning | **Modify** |
-| `DocRAG.Ingestion/Symbols/SampleWindowExtractor.cs` | 200-char window helper | **Create** |
-| `DocRAG.Ingestion/Recon/RejectionAccumulator.cs` | Aggregates rejections across chunks (reason, count, thirds-bucketed samples) | **Create** |
-| `DocRAG.Ingestion/Recon/RescrubService.cs` | Wire accumulator + hints; takes excluded repo | **Modify** |
-| `DocRAG.Ingestion/Recon/LibraryProfileService.cs` | Carry forward `Stoplist` from prior version when target's stoplist is empty | **Modify** |
-| `DocRAG.Mcp/Tools/SymbolManagementTools.cs` | The three new MCP tools | **Create** |
-| `DocRAG.Mcp/Tools/RescrubTools.cs` | None — `RescrubResult` shape change rides through serializer | (no change) |
-| `DocRAG.Tests/Symbols/SymbolExtractorTests.cs` | Add reason-mapping cases | **Modify** |
-| `DocRAG.Tests/Symbols/StoplistTests.cs` | New file covering profile-aware match | **Create** |
-| `DocRAG.Tests/Symbols/SampleWindowExtractorTests.cs` | New tests | **Create** |
-| `DocRAG.Tests/Recon/RejectionAccumulatorTests.cs` | New tests | **Create** |
-| `DocRAG.Tests/Recon/RescrubServiceTests.cs` | Add hint-threshold + excluded-persist tests | **Modify** |
-| `DocRAG.Tests/Recon/LibraryProfileServiceTests.cs` | Add Stoplist carry-forward tests | **Modify** |
-| `DocRAG.Tests/Mcp/SymbolManagementToolsTests.cs` | New tests for the 3 MCP tools | **Create** |
+| `SaddleRAG.Core/Enums/SymbolRejectionReason.cs` | 6-value enum naming each reject path | **Create** |
+| `SaddleRAG.Core/Models/ExcludedSymbol.cs` | Persistable record for a rejected token + samples | **Create** |
+| `SaddleRAG.Core/Models/LibraryProfile.cs` | Add `Stoplist` field, bump `CurrentSchemaVersion` to 2 | **Modify** |
+| `SaddleRAG.Core/Models/RescrubResult.cs` | Add `ExcludedCount` and `Hints` fields | **Modify** |
+| `SaddleRAG.Core/Interfaces/IExcludedSymbolsRepository.cs` | Repository contract | **Create** |
+| `SaddleRAG.Database/SaddleRagDbContext.cs` | Register `ExcludedSymbols` collection + indexes | **Modify** |
+| `SaddleRAG.Database/Repositories/ExcludedSymbolsRepository.cs` | Mongo impl of the repo | **Create** |
+| `SaddleRAG.Database/Repositories/RepositoryFactory.cs` | Add `GetExcludedSymbolsRepository(profile)` | **Modify** |
+| `SaddleRAG.Database/ServiceCollectionExtensions.cs` | DI registration for the new repo | **Modify** |
+| `SaddleRAG.Ingestion/Symbols/Stoplist.cs` | Add `StoplistMatch` enum + profile-aware `Match` overload | **Modify** |
+| `SaddleRAG.Ingestion/Symbols/RejectedToken.cs` | Per-rejection record returned by extractor | **Create** |
+| `SaddleRAG.Ingestion/Symbols/ExtractedSymbols.cs` | Add `Rejected` field | **Modify** |
+| `SaddleRAG.Ingestion/Symbols/SymbolExtractor.cs` | Return rejections; `IsAdmissible` becomes reason-returning | **Modify** |
+| `SaddleRAG.Ingestion/Symbols/SampleWindowExtractor.cs` | 200-char window helper | **Create** |
+| `SaddleRAG.Ingestion/Recon/RejectionAccumulator.cs` | Aggregates rejections across chunks (reason, count, thirds-bucketed samples) | **Create** |
+| `SaddleRAG.Ingestion/Recon/RescrubService.cs` | Wire accumulator + hints; takes excluded repo | **Modify** |
+| `SaddleRAG.Ingestion/Recon/LibraryProfileService.cs` | Carry forward `Stoplist` from prior version when target's stoplist is empty | **Modify** |
+| `SaddleRAG.Mcp/Tools/SymbolManagementTools.cs` | The three new MCP tools | **Create** |
+| `SaddleRAG.Mcp/Tools/RescrubTools.cs` | None — `RescrubResult` shape change rides through serializer | (no change) |
+| `SaddleRAG.Tests/Symbols/SymbolExtractorTests.cs` | Add reason-mapping cases | **Modify** |
+| `SaddleRAG.Tests/Symbols/StoplistTests.cs` | New file covering profile-aware match | **Create** |
+| `SaddleRAG.Tests/Symbols/SampleWindowExtractorTests.cs` | New tests | **Create** |
+| `SaddleRAG.Tests/Recon/RejectionAccumulatorTests.cs` | New tests | **Create** |
+| `SaddleRAG.Tests/Recon/RescrubServiceTests.cs` | Add hint-threshold + excluded-persist tests | **Modify** |
+| `SaddleRAG.Tests/Recon/LibraryProfileServiceTests.cs` | Add Stoplist carry-forward tests | **Modify** |
+| `SaddleRAG.Tests/Mcp/SymbolManagementToolsTests.cs` | New tests for the 3 MCP tools | **Create** |
 
 ## Standing Conventions (apply to every task)
 
@@ -54,10 +54,10 @@
   // Use subject to the MIT License.
   ```
 - File order: enums → delegates → nested types → constructors → properties → fields (readonly first) → interface impls → other members → static fields/constants.
-- Logging: `private static IPenskeLogger Log { get; } = LoggingManager.GetLog<ClassName>();` — but DocRAG uses `ILogger<T>` from `Microsoft.Extensions.Logging` per existing patterns. Match what's already in the file.
-- All git commits via `git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt` (message file, never inline). NEVER add `Co-Authored-By:` trailers or "🤖 Generated with Claude Code". Body is the user's content only.
-- Build verification command: `dotnet build e:/GitHub/DocRAG/DocRAG.slnx -c Debug --nologo -v minimal`
-- Test command (whole suite): `dotnet test e:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj --no-build -v minimal`
+- Logging: `private static IPenskeLogger Log { get; } = LoggingManager.GetLog<ClassName>();` — but SaddleRAG uses `ILogger<T>` from `Microsoft.Extensions.Logging` per existing patterns. Match what's already in the file.
+- All git commits via `git -C e:/GitHub/SaddleRAG commit -F e:/tmp/msg.txt` (message file, never inline). NEVER add `Co-Authored-By:` trailers or "🤖 Generated with Claude Code". Body is the user's content only.
+- Build verification command: `dotnet build e:/GitHub/SaddleRAG/SaddleRAG.slnx -c Debug --nologo -v minimal`
+- Test command (whole suite): `dotnet test e:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj --no-build -v minimal`
 - Test command (single class): add `--filter "FullyQualifiedName~TestClassName"` to the above.
 
 ---
@@ -65,8 +65,8 @@
 ## Task 1: New enum + record (no behavior change yet)
 
 **Files:**
-- Create: `DocRAG.Core/Enums/SymbolRejectionReason.cs`
-- Create: `DocRAG.Core/Models/ExcludedSymbol.cs`
+- Create: `SaddleRAG.Core/Enums/SymbolRejectionReason.cs`
+- Create: `SaddleRAG.Core/Models/ExcludedSymbol.cs`
 
 - [ ] **Step 1.1: Create the enum file**
 
@@ -75,7 +75,7 @@
 // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
 // Use subject to the MIT License.
 
-namespace DocRAG.Core.Enums;
+namespace SaddleRAG.Core.Enums;
 
 /// <summary>
 ///     Why an identifier-shaped token did NOT survive the symbol extractor.
@@ -132,11 +132,11 @@ public enum SymbolRejectionReason
 
 #region Usings
 
-using DocRAG.Core.Enums;
+using SaddleRAG.Core.Enums;
 
 #endregion
 
-namespace DocRAG.Core.Models;
+namespace SaddleRAG.Core.Models;
 
 /// <summary>
 ///     Persistable record describing a token the symbol extractor rejected.
@@ -204,7 +204,7 @@ public record ExcludedSymbol
 
 - [ ] **Step 1.3: Build to verify the new types compile**
 
-Run: `dotnet build e:/GitHub/DocRAG/DocRAG.slnx -c Debug --nologo -v minimal`
+Run: `dotnet build e:/GitHub/SaddleRAG/SaddleRAG.slnx -c Debug --nologo -v minimal`
 Expected: build succeeds, 0 errors.
 
 - [ ] **Step 1.4: Commit**
@@ -220,8 +220,8 @@ repository, extractor changes, rescrub plumbing, and MCP tools.
 
 Run:
 ```
-git -C e:/GitHub/DocRAG add DocRAG.Core/Enums/SymbolRejectionReason.cs DocRAG.Core/Models/ExcludedSymbol.cs
-git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
+git -C e:/GitHub/SaddleRAG add SaddleRAG.Core/Enums/SymbolRejectionReason.cs SaddleRAG.Core/Models/ExcludedSymbol.cs
+git -C e:/GitHub/SaddleRAG commit -F e:/tmp/msg.txt
 ```
 
 ---
@@ -229,11 +229,11 @@ git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
 ## Task 2: Add `LibraryProfile.Stoplist` and bump schema version
 
 **Files:**
-- Modify: `DocRAG.Core/Models/LibraryProfile.cs`
+- Modify: `SaddleRAG.Core/Models/LibraryProfile.cs`
 
 - [ ] **Step 2.1: Write failing test**
 
-Append to `DocRAG.Tests/Recon/LibraryProfileServiceTests.cs` (top of class, after the existing `BuildPopulatesIdAndCreatedUtc`):
+Append to `SaddleRAG.Tests/Recon/LibraryProfileServiceTests.cs` (top of class, after the existing `BuildPopulatesIdAndCreatedUtc`):
 
 ```csharp
 [Fact]
@@ -264,7 +264,7 @@ public void CurrentSchemaVersionIsTwoAfterStoplistAddition()
 
 - [ ] **Step 2.2: Run failing tests**
 
-Run: `dotnet test e:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj --filter "FullyQualifiedName~LibraryProfileServiceTests" -v minimal`
+Run: `dotnet test e:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj --filter "FullyQualifiedName~LibraryProfileServiceTests" -v minimal`
 Expected: both new tests fail to compile (`Stoplist` doesn't exist) or fail at assertion.
 
 - [ ] **Step 2.3: Edit `LibraryProfile.cs`**
@@ -327,7 +327,7 @@ New:
 
 - [ ] **Step 2.4: Run tests to verify they pass**
 
-Run: `dotnet test e:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj --filter "FullyQualifiedName~LibraryProfileServiceTests" -v minimal`
+Run: `dotnet test e:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj --filter "FullyQualifiedName~LibraryProfileServiceTests" -v minimal`
 Expected: PASS (including pre-existing tests — schema bump should not break `ComputeHash` since hash computation does not include Stoplist yet).
 
 - [ ] **Step 2.5: Commit**
@@ -344,8 +344,8 @@ treats the missing field as the C# default ([]).
 
 Run:
 ```
-git -C e:/GitHub/DocRAG add DocRAG.Core/Models/LibraryProfile.cs DocRAG.Tests/Recon/LibraryProfileServiceTests.cs
-git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
+git -C e:/GitHub/SaddleRAG add SaddleRAG.Core/Models/LibraryProfile.cs SaddleRAG.Tests/Recon/LibraryProfileServiceTests.cs
+git -C e:/GitHub/SaddleRAG commit -F e:/tmp/msg.txt
 ```
 
 ---
@@ -353,7 +353,7 @@ git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
 ## Task 3: Repository interface
 
 **Files:**
-- Create: `DocRAG.Core/Interfaces/IExcludedSymbolsRepository.cs`
+- Create: `SaddleRAG.Core/Interfaces/IExcludedSymbolsRepository.cs`
 
 - [ ] **Step 3.1: Create the interface**
 
@@ -364,12 +364,12 @@ git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
 
 #region Usings
 
-using DocRAG.Core.Enums;
-using DocRAG.Core.Models;
+using SaddleRAG.Core.Enums;
+using SaddleRAG.Core.Models;
 
 #endregion
 
-namespace DocRAG.Core.Interfaces;
+namespace SaddleRAG.Core.Interfaces;
 
 /// <summary>
 ///     Persistence surface for per-(library, version) symbol-extractor
@@ -421,7 +421,7 @@ public interface IExcludedSymbolsRepository
 
 - [ ] **Step 3.2: Build**
 
-Run: `dotnet build e:/GitHub/DocRAG/DocRAG.slnx -c Debug --nologo -v minimal`
+Run: `dotnet build e:/GitHub/SaddleRAG/SaddleRAG.slnx -c Debug --nologo -v minimal`
 Expected: succeeds, 0 errors.
 
 - [ ] **Step 3.3: Commit**
@@ -436,8 +436,8 @@ rejections. Implementation, DI wiring, and indexes follow.
 
 Run:
 ```
-git -C e:/GitHub/DocRAG add DocRAG.Core/Interfaces/IExcludedSymbolsRepository.cs
-git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
+git -C e:/GitHub/SaddleRAG add SaddleRAG.Core/Interfaces/IExcludedSymbolsRepository.cs
+git -C e:/GitHub/SaddleRAG commit -F e:/tmp/msg.txt
 ```
 
 ---
@@ -445,10 +445,10 @@ git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
 ## Task 4: Repository implementation + DI + indexes
 
 **Files:**
-- Create: `DocRAG.Database/Repositories/ExcludedSymbolsRepository.cs`
-- Modify: `DocRAG.Database/DocRagDbContext.cs`
-- Modify: `DocRAG.Database/Repositories/RepositoryFactory.cs`
-- Modify: `DocRAG.Database/ServiceCollectionExtensions.cs`
+- Create: `SaddleRAG.Database/Repositories/ExcludedSymbolsRepository.cs`
+- Modify: `SaddleRAG.Database/SaddleRagDbContext.cs`
+- Modify: `SaddleRAG.Database/Repositories/RepositoryFactory.cs`
+- Modify: `SaddleRAG.Database/ServiceCollectionExtensions.cs`
 
 - [ ] **Step 4.1: Create the repository**
 
@@ -459,14 +459,14 @@ git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
 
 #region Usings
 
-using DocRAG.Core.Enums;
-using DocRAG.Core.Interfaces;
-using DocRAG.Core.Models;
+using SaddleRAG.Core.Enums;
+using SaddleRAG.Core.Interfaces;
+using SaddleRAG.Core.Models;
 using MongoDB.Driver;
 
 #endregion
 
-namespace DocRAG.Database.Repositories;
+namespace SaddleRAG.Database.Repositories;
 
 /// <summary>
 ///     MongoDB-backed implementation of IExcludedSymbolsRepository.
@@ -475,12 +475,12 @@ namespace DocRAG.Database.Repositories;
 /// </summary>
 public class ExcludedSymbolsRepository : IExcludedSymbolsRepository
 {
-    public ExcludedSymbolsRepository(DocRagDbContext context)
+    public ExcludedSymbolsRepository(SaddleRagDbContext context)
     {
         mContext = context;
     }
 
-    private readonly DocRagDbContext mContext;
+    private readonly SaddleRagDbContext mContext;
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<ExcludedSymbol>> ListAsync(string libraryId,
@@ -568,7 +568,7 @@ public class ExcludedSymbolsRepository : IExcludedSymbolsRepository
 }
 ```
 
-- [ ] **Step 4.2: Add the collection accessor and indexes to `DocRagDbContext.cs`**
+- [ ] **Step 4.2: Add the collection accessor and indexes to `SaddleRagDbContext.cs`**
 
 Add a property after `Bm25Shards` (around line 56):
 
@@ -654,7 +654,7 @@ New:
 
 - [ ] **Step 4.5: Build to verify everything wires up**
 
-Run: `dotnet build e:/GitHub/DocRAG/DocRAG.slnx -c Debug --nologo -v minimal`
+Run: `dotnet build e:/GitHub/SaddleRAG/SaddleRAG.slnx -c Debug --nologo -v minimal`
 Expected: succeeds, 0 errors.
 
 - [ ] **Step 4.6: Commit**
@@ -671,8 +671,8 @@ the two query shapes the new MCP tools need: filter-by-reason
 
 Run:
 ```
-git -C e:/GitHub/DocRAG add DocRAG.Database/Repositories/ExcludedSymbolsRepository.cs DocRAG.Database/DocRagDbContext.cs DocRAG.Database/Repositories/RepositoryFactory.cs DocRAG.Database/ServiceCollectionExtensions.cs
-git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
+git -C e:/GitHub/SaddleRAG add SaddleRAG.Database/Repositories/ExcludedSymbolsRepository.cs SaddleRAG.Database/SaddleRagDbContext.cs SaddleRAG.Database/Repositories/RepositoryFactory.cs SaddleRAG.Database/ServiceCollectionExtensions.cs
+git -C e:/GitHub/SaddleRAG commit -F e:/tmp/msg.txt
 ```
 
 ---
@@ -680,12 +680,12 @@ git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
 ## Task 5: `Stoplist.Match` overload (profile-aware)
 
 **Files:**
-- Modify: `DocRAG.Ingestion/Symbols/Stoplist.cs`
-- Create: `DocRAG.Tests/Symbols/StoplistTests.cs`
+- Modify: `SaddleRAG.Ingestion/Symbols/Stoplist.cs`
+- Create: `SaddleRAG.Tests/Symbols/StoplistTests.cs`
 
 - [ ] **Step 5.1: Write failing tests**
 
-Create `DocRAG.Tests/Symbols/StoplistTests.cs`:
+Create `SaddleRAG.Tests/Symbols/StoplistTests.cs`:
 
 ```csharp
 // StoplistTests.cs
@@ -694,12 +694,12 @@ Create `DocRAG.Tests/Symbols/StoplistTests.cs`:
 
 #region Usings
 
-using DocRAG.Core.Models;
-using DocRAG.Ingestion.Symbols;
+using SaddleRAG.Core.Models;
+using SaddleRAG.Ingestion.Symbols;
 
 #endregion
 
-namespace DocRAG.Tests.Symbols;
+namespace SaddleRAG.Tests.Symbols;
 
 public sealed class StoplistTests
 {
@@ -780,16 +780,16 @@ public sealed class StoplistTests
 
 - [ ] **Step 5.2: Run failing tests**
 
-Run: `dotnet test e:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj --filter "FullyQualifiedName~StoplistTests" -v minimal`
+Run: `dotnet test e:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj --filter "FullyQualifiedName~StoplistTests" -v minimal`
 Expected: FAIL — `StoplistMatch` doesn't exist; `Match` doesn't exist.
 
 - [ ] **Step 5.3: Add `StoplistMatch` enum and `Match` overload**
 
-Replace the contents of `DocRAG.Ingestion/Symbols/Stoplist.cs` (the existing file). Keep the existing `Contains(candidate)` overload and the `smStopwords` set unchanged. Add the enum at the top of the namespace and the new `Match` method:
+Replace the contents of `SaddleRAG.Ingestion/Symbols/Stoplist.cs` (the existing file). Keep the existing `Contains(candidate)` overload and the `smStopwords` set unchanged. Add the enum at the top of the namespace and the new `Match` method:
 
 Old (around line 5):
 ```csharp
-namespace DocRAG.Ingestion.Symbols;
+namespace SaddleRAG.Ingestion.Symbols;
 
 /// <summary>
 ///     Backup filter for the symbol extractor. Words matching the stoplist
@@ -797,7 +797,7 @@ namespace DocRAG.Ingestion.Symbols;
 
 New:
 ```csharp
-namespace DocRAG.Ingestion.Symbols;
+namespace SaddleRAG.Ingestion.Symbols;
 
 /// <summary>
 ///     Result of a profile-aware stoplist check.
@@ -822,18 +822,18 @@ Add a `using` for `LibraryProfile`:
 
 Old (top of file):
 ```csharp
-namespace DocRAG.Ingestion.Symbols;
+namespace SaddleRAG.Ingestion.Symbols;
 ```
 
 New:
 ```csharp
 #region Usings
 
-using DocRAG.Core.Models;
+using SaddleRAG.Core.Models;
 
 #endregion
 
-namespace DocRAG.Ingestion.Symbols;
+namespace SaddleRAG.Ingestion.Symbols;
 ```
 
 Add the `Match` method inside the `Stoplist` class, right after the existing `Contains` method:
@@ -865,7 +865,7 @@ Add the `Match` method inside the `Stoplist` class, right after the existing `Co
 
 - [ ] **Step 5.4: Run tests to verify they pass**
 
-Run: `dotnet test e:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj --filter "FullyQualifiedName~StoplistTests" -v minimal`
+Run: `dotnet test e:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj --filter "FullyQualifiedName~StoplistTests" -v minimal`
 Expected: PASS (all six tests).
 
 - [ ] **Step 5.5: Commit**
@@ -882,8 +882,8 @@ overload is unchanged so existing callers keep working.
 
 Run:
 ```
-git -C e:/GitHub/DocRAG add DocRAG.Ingestion/Symbols/Stoplist.cs DocRAG.Tests/Symbols/StoplistTests.cs
-git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
+git -C e:/GitHub/SaddleRAG add SaddleRAG.Ingestion/Symbols/Stoplist.cs SaddleRAG.Tests/Symbols/StoplistTests.cs
+git -C e:/GitHub/SaddleRAG commit -F e:/tmp/msg.txt
 ```
 
 ---
@@ -891,8 +891,8 @@ git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
 ## Task 6: `RejectedToken` and `ExtractedSymbols.Rejected`
 
 **Files:**
-- Create: `DocRAG.Ingestion/Symbols/RejectedToken.cs`
-- Modify: `DocRAG.Ingestion/Symbols/ExtractedSymbols.cs`
+- Create: `SaddleRAG.Ingestion/Symbols/RejectedToken.cs`
+- Modify: `SaddleRAG.Ingestion/Symbols/ExtractedSymbols.cs`
 
 - [ ] **Step 6.1: Create `RejectedToken`**
 
@@ -903,11 +903,11 @@ git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
 
 #region Usings
 
-using DocRAG.Core.Enums;
+using SaddleRAG.Core.Enums;
 
 #endregion
 
-namespace DocRAG.Ingestion.Symbols;
+namespace SaddleRAG.Ingestion.Symbols;
 
 /// <summary>
 ///     A single token the extractor rejected. The rescrub pass aggregates
@@ -992,7 +992,7 @@ public record ExtractedSymbols
 
 - [ ] **Step 6.3: Build**
 
-Run: `dotnet build e:/GitHub/DocRAG/DocRAG.slnx -c Debug --nologo -v minimal`
+Run: `dotnet build e:/GitHub/SaddleRAG/SaddleRAG.slnx -c Debug --nologo -v minimal`
 Expected: succeeds, 0 errors. Existing tests unchanged because the new field has a default value.
 
 - [ ] **Step 6.4: Commit**
@@ -1008,8 +1008,8 @@ extract callers source-compatible.
 
 Run:
 ```
-git -C e:/GitHub/DocRAG add DocRAG.Ingestion/Symbols/RejectedToken.cs DocRAG.Ingestion/Symbols/ExtractedSymbols.cs
-git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
+git -C e:/GitHub/SaddleRAG add SaddleRAG.Ingestion/Symbols/RejectedToken.cs SaddleRAG.Ingestion/Symbols/ExtractedSymbols.cs
+git -C e:/GitHub/SaddleRAG commit -F e:/tmp/msg.txt
 ```
 
 ---
@@ -1019,12 +1019,12 @@ git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
 This is the largest task. The behavior of which tokens survive must NOT change — only the labeling of the why.
 
 **Files:**
-- Modify: `DocRAG.Ingestion/Symbols/SymbolExtractor.cs`
-- Modify: `DocRAG.Tests/Symbols/SymbolExtractorTests.cs`
+- Modify: `SaddleRAG.Ingestion/Symbols/SymbolExtractor.cs`
+- Modify: `SaddleRAG.Tests/Symbols/SymbolExtractorTests.cs`
 
 - [ ] **Step 7.1: Write failing tests**
 
-Append to `DocRAG.Tests/Symbols/SymbolExtractorTests.cs` (before the closing `}` of the class):
+Append to `SaddleRAG.Tests/Symbols/SymbolExtractorTests.cs` (before the closing `}` of the class):
 
 ```csharp
 [Fact]
@@ -1140,7 +1140,7 @@ private static LibraryProfile MakeProfileWithStoplist(IReadOnlyList<string> stop
 
 - [ ] **Step 7.2: Run failing tests**
 
-Run: `dotnet test e:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj --filter "FullyQualifiedName~SymbolExtractorTests" -v minimal`
+Run: `dotnet test e:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj --filter "FullyQualifiedName~SymbolExtractorTests" -v minimal`
 Expected: 7 new tests fail (Rejected list is empty in current implementation).
 
 - [ ] **Step 7.3: Rewrite `SymbolExtractor.cs`**
@@ -1309,18 +1309,18 @@ Replace lines 50–128 of `SymbolExtractor.cs` (everything from `/// <summary>` 
     }
 ```
 
-Add a `using` for `DocRAG.Core.Enums` at the top if it's not already present (it should be — the file already declares `using DocRAG.Core.Enums;` at line 7).
+Add a `using` for `SaddleRAG.Core.Enums` at the top if it's not already present (it should be — the file already declares `using SaddleRAG.Core.Enums;` at line 7).
 
 Remove the obsolete `IsAdmissible`, `ShouldKeep`, and `IsProseFrequent` methods (the new structure replaces them all). The old bodies, for reference, were lines 86–128 in the original file.
 
 - [ ] **Step 7.4: Run extractor tests to verify they pass**
 
-Run: `dotnet test e:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj --filter "FullyQualifiedName~SymbolExtractorTests" -v minimal`
+Run: `dotnet test e:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj --filter "FullyQualifiedName~SymbolExtractorTests" -v minimal`
 Expected: PASS. All existing tests + 7 new ones.
 
 - [ ] **Step 7.5: Run the full test suite to confirm no regressions**
 
-Run: `dotnet test e:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj -v minimal`
+Run: `dotnet test e:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj -v minimal`
 Expected: PASS.
 
 - [ ] **Step 7.6: Commit**
@@ -1340,8 +1340,8 @@ NoStructureSignal.
 
 Run:
 ```
-git -C e:/GitHub/DocRAG add DocRAG.Ingestion/Symbols/SymbolExtractor.cs DocRAG.Tests/Symbols/SymbolExtractorTests.cs
-git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
+git -C e:/GitHub/SaddleRAG add SaddleRAG.Ingestion/Symbols/SymbolExtractor.cs SaddleRAG.Tests/Symbols/SymbolExtractorTests.cs
+git -C e:/GitHub/SaddleRAG commit -F e:/tmp/msg.txt
 ```
 
 ---
@@ -1349,8 +1349,8 @@ git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
 ## Task 8: `SampleWindowExtractor`
 
 **Files:**
-- Create: `DocRAG.Ingestion/Symbols/SampleWindowExtractor.cs`
-- Create: `DocRAG.Tests/Symbols/SampleWindowExtractorTests.cs`
+- Create: `SaddleRAG.Ingestion/Symbols/SampleWindowExtractor.cs`
+- Create: `SaddleRAG.Tests/Symbols/SampleWindowExtractorTests.cs`
 
 - [ ] **Step 8.1: Write failing tests**
 
@@ -1361,11 +1361,11 @@ git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
 
 #region Usings
 
-using DocRAG.Ingestion.Symbols;
+using SaddleRAG.Ingestion.Symbols;
 
 #endregion
 
-namespace DocRAG.Tests.Symbols;
+namespace SaddleRAG.Tests.Symbols;
 
 public sealed class SampleWindowExtractorTests
 {
@@ -1471,7 +1471,7 @@ public sealed class SampleWindowExtractorTests
 
 - [ ] **Step 8.2: Run failing tests**
 
-Run: `dotnet test e:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj --filter "FullyQualifiedName~SampleWindowExtractorTests" -v minimal`
+Run: `dotnet test e:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj --filter "FullyQualifiedName~SampleWindowExtractorTests" -v minimal`
 Expected: FAIL — `SampleWindowExtractor` doesn't exist.
 
 - [ ] **Step 8.3: Implement `SampleWindowExtractor`**
@@ -1487,7 +1487,7 @@ using System.Text.RegularExpressions;
 
 #endregion
 
-namespace DocRAG.Ingestion.Symbols;
+namespace SaddleRAG.Ingestion.Symbols;
 
 /// <summary>
 ///     Pulls a short corpus snippet around the first occurrence of a
@@ -1586,7 +1586,7 @@ public static class SampleWindowExtractor
 
 - [ ] **Step 8.4: Run tests to verify pass**
 
-Run: `dotnet test e:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj --filter "FullyQualifiedName~SampleWindowExtractorTests" -v minimal`
+Run: `dotnet test e:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj --filter "FullyQualifiedName~SampleWindowExtractorTests" -v minimal`
 Expected: PASS. All 8 tests.
 
 - [ ] **Step 8.5: Commit**
@@ -1604,8 +1604,8 @@ sample sentences to each ExcludedSymbol record.
 
 Run:
 ```
-git -C e:/GitHub/DocRAG add DocRAG.Ingestion/Symbols/SampleWindowExtractor.cs DocRAG.Tests/Symbols/SampleWindowExtractorTests.cs
-git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
+git -C e:/GitHub/SaddleRAG add SaddleRAG.Ingestion/Symbols/SampleWindowExtractor.cs SaddleRAG.Tests/Symbols/SampleWindowExtractorTests.cs
+git -C e:/GitHub/SaddleRAG commit -F e:/tmp/msg.txt
 ```
 
 ---
@@ -1613,8 +1613,8 @@ git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
 ## Task 9: `RejectionAccumulator`
 
 **Files:**
-- Create: `DocRAG.Ingestion/Recon/RejectionAccumulator.cs`
-- Create: `DocRAG.Tests/Recon/RejectionAccumulatorTests.cs`
+- Create: `SaddleRAG.Ingestion/Recon/RejectionAccumulator.cs`
+- Create: `SaddleRAG.Tests/Recon/RejectionAccumulatorTests.cs`
 
 - [ ] **Step 9.1: Write failing tests**
 
@@ -1625,13 +1625,13 @@ git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
 
 #region Usings
 
-using DocRAG.Core.Enums;
-using DocRAG.Ingestion.Recon;
-using DocRAG.Ingestion.Symbols;
+using SaddleRAG.Core.Enums;
+using SaddleRAG.Ingestion.Recon;
+using SaddleRAG.Ingestion.Symbols;
 
 #endregion
 
-namespace DocRAG.Tests.Recon;
+namespace SaddleRAG.Tests.Recon;
 
 public sealed class RejectionAccumulatorTests
 {
@@ -1772,7 +1772,7 @@ public sealed class RejectionAccumulatorTests
 
 - [ ] **Step 9.2: Run failing tests**
 
-Run: `dotnet test e:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj --filter "FullyQualifiedName~RejectionAccumulatorTests" -v minimal`
+Run: `dotnet test e:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj --filter "FullyQualifiedName~RejectionAccumulatorTests" -v minimal`
 Expected: FAIL — `RejectionAccumulator` doesn't exist.
 
 - [ ] **Step 9.3: Implement `RejectionAccumulator`**
@@ -1784,13 +1784,13 @@ Expected: FAIL — `RejectionAccumulator` doesn't exist.
 
 #region Usings
 
-using DocRAG.Core.Enums;
-using DocRAG.Core.Models;
-using DocRAG.Ingestion.Symbols;
+using SaddleRAG.Core.Enums;
+using SaddleRAG.Core.Models;
+using SaddleRAG.Ingestion.Symbols;
 
 #endregion
 
-namespace DocRAG.Ingestion.Recon;
+namespace SaddleRAG.Ingestion.Recon;
 
 /// <summary>
 ///     Aggregates per-chunk RejectedToken reports across a rescrub pass
@@ -1909,7 +1909,7 @@ public sealed class RejectionAccumulator
 
 - [ ] **Step 9.4: Run tests to verify pass**
 
-Run: `dotnet test e:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj --filter "FullyQualifiedName~RejectionAccumulatorTests" -v minimal`
+Run: `dotnet test e:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj --filter "FullyQualifiedName~RejectionAccumulatorTests" -v minimal`
 Expected: PASS. All 7 tests.
 
 - [ ] **Step 9.5: Commit**
@@ -1928,8 +1928,8 @@ upsert.
 
 Run:
 ```
-git -C e:/GitHub/DocRAG add DocRAG.Ingestion/Recon/RejectionAccumulator.cs DocRAG.Tests/Recon/RejectionAccumulatorTests.cs
-git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
+git -C e:/GitHub/SaddleRAG add SaddleRAG.Ingestion/Recon/RejectionAccumulator.cs SaddleRAG.Tests/Recon/RejectionAccumulatorTests.cs
+git -C e:/GitHub/SaddleRAG commit -F e:/tmp/msg.txt
 ```
 
 ---
@@ -1937,7 +1937,7 @@ git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
 ## Task 10: Add `ExcludedCount` and `Hints` to `RescrubResult`
 
 **Files:**
-- Modify: `DocRAG.Core/Models/RescrubResult.cs`
+- Modify: `SaddleRAG.Core/Models/RescrubResult.cs`
 
 - [ ] **Step 10.1: Add the fields**
 
@@ -1962,7 +1962,7 @@ After the `ReconNeeded` property, add:
 
 - [ ] **Step 10.2: Build**
 
-Run: `dotnet build e:/GitHub/DocRAG/DocRAG.slnx -c Debug --nologo -v minimal`
+Run: `dotnet build e:/GitHub/SaddleRAG/SaddleRAG.slnx -c Debug --nologo -v minimal`
 Expected: succeeds. Existing `RescrubServiceTests` continue to compile because the new fields default to zero / empty.
 
 - [ ] **Step 10.3: Commit**
@@ -1978,8 +1978,8 @@ the rejection accumulator and the threshold rule.
 
 Run:
 ```
-git -C e:/GitHub/DocRAG add DocRAG.Core/Models/RescrubResult.cs
-git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
+git -C e:/GitHub/SaddleRAG add SaddleRAG.Core/Models/RescrubResult.cs
+git -C e:/GitHub/SaddleRAG commit -F e:/tmp/msg.txt
 ```
 
 ---
@@ -1987,13 +1987,13 @@ git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
 ## Task 11: Wire `RescrubService` to capture and persist rejections + emit hints
 
 **Files:**
-- Modify: `DocRAG.Ingestion/Recon/RescrubService.cs`
-- Modify: `DocRAG.Mcp/Tools/RescrubTools.cs`
-- Modify: `DocRAG.Tests/Recon/RescrubServiceTests.cs`
+- Modify: `SaddleRAG.Ingestion/Recon/RescrubService.cs`
+- Modify: `SaddleRAG.Mcp/Tools/RescrubTools.cs`
+- Modify: `SaddleRAG.Tests/Recon/RescrubServiceTests.cs`
 
 - [ ] **Step 11.1: Write failing tests**
 
-Append to `DocRAG.Tests/Recon/RescrubServiceTests.cs` (before the closing `}` of the class). The tests use the same `MakeService` / `MakeProfile` / `MakeLegacyChunk` helpers already in the file.
+Append to `SaddleRAG.Tests/Recon/RescrubServiceTests.cs` (before the closing `}` of the class). The tests use the same `MakeService` / `MakeProfile` / `MakeLegacyChunk` helpers already in the file.
 
 ```csharp
 [Fact]
@@ -2123,11 +2123,11 @@ public async Task SuppressesHintsBelowAbsoluteFloor()
 }
 ```
 
-You will also need to add `using DocRAG.Core.Models;` if the file doesn't already pull it (`MakeProfile` already constructs a `LibraryProfile`, so it does — leave it).
+You will also need to add `using SaddleRAG.Core.Models;` if the file doesn't already pull it (`MakeProfile` already constructs a `LibraryProfile`, so it does — leave it).
 
 - [ ] **Step 11.2: Run failing tests**
 
-Run: `dotnet test e:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj --filter "FullyQualifiedName~RescrubServiceTests" -v minimal`
+Run: `dotnet test e:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj --filter "FullyQualifiedName~RescrubServiceTests" -v minimal`
 Expected: 4 new tests fail to compile (`RescrubAsync` doesn't accept `excludedRepo`).
 
 - [ ] **Step 11.3: Update existing `RescrubServiceTests` calls**
@@ -2170,7 +2170,7 @@ Apply this to every existing call to `RescrubAsync` in the test file.
 
 - [ ] **Step 11.4: Update `RescrubService.RescrubAsync` signature and logic**
 
-Modify `DocRAG.Ingestion/Recon/RescrubService.cs`:
+Modify `SaddleRAG.Ingestion/Recon/RescrubService.cs`:
 
 Add the new repo parameter to the public `RescrubAsync` signature (after `bm25ShardRepo` and before `libraryId`):
 
@@ -2602,7 +2602,7 @@ Add the const declarations near the existing const block at the bottom:
 
 - [ ] **Step 11.5: Update `RescrubTools` to inject the new repo**
 
-Modify `DocRAG.Mcp/Tools/RescrubTools.cs` — the `RescrubLibrary` method body. Add the new repo lookup after `bm25ShardRepo`:
+Modify `SaddleRAG.Mcp/Tools/RescrubTools.cs` — the `RescrubLibrary` method body. Add the new repo lookup after `bm25ShardRepo`:
 
 Old:
 ```csharp
@@ -2644,7 +2644,7 @@ New:
 
 - [ ] **Step 11.6: Run the full test suite**
 
-Run: `dotnet test e:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj -v minimal`
+Run: `dotnet test e:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj -v minimal`
 Expected: PASS. 4 new RescrubServiceTests, plus all pre-existing tests after their `RescrubAsync` calls were updated.
 
 - [ ] **Step 11.7: Commit**
@@ -2665,8 +2665,8 @@ factory pattern.
 
 Run:
 ```
-git -C e:/GitHub/DocRAG add DocRAG.Ingestion/Recon/RescrubService.cs DocRAG.Mcp/Tools/RescrubTools.cs DocRAG.Tests/Recon/RescrubServiceTests.cs
-git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
+git -C e:/GitHub/SaddleRAG add SaddleRAG.Ingestion/Recon/RescrubService.cs SaddleRAG.Mcp/Tools/RescrubTools.cs SaddleRAG.Tests/Recon/RescrubServiceTests.cs
+git -C e:/GitHub/SaddleRAG commit -F e:/tmp/msg.txt
 ```
 
 ---
@@ -2674,12 +2674,12 @@ git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
 ## Task 12: Stoplist carry-forward in `LibraryProfileService`
 
 **Files:**
-- Modify: `DocRAG.Ingestion/Recon/LibraryProfileService.cs`
-- Modify: `DocRAG.Tests/Recon/LibraryProfileServiceTests.cs`
+- Modify: `SaddleRAG.Ingestion/Recon/LibraryProfileService.cs`
+- Modify: `SaddleRAG.Tests/Recon/LibraryProfileServiceTests.cs`
 
 - [ ] **Step 12.1: Write failing tests**
 
-Append to `DocRAG.Tests/Recon/LibraryProfileServiceTests.cs` (before the closing `}` of the class):
+Append to `SaddleRAG.Tests/Recon/LibraryProfileServiceTests.cs` (before the closing `}` of the class):
 
 ```csharp
 [Fact]
@@ -2739,16 +2739,16 @@ private static LibraryProfile MakeProfileWithStoplist(string version, IReadOnlyL
         };
 ```
 
-Also add `using DocRAG.Core.Interfaces;` and `using NSubstitute;` and `using Microsoft.Extensions.Logging.Abstractions;` to the file's `#region Usings` block if not already present.
+Also add `using SaddleRAG.Core.Interfaces;` and `using NSubstitute;` and `using Microsoft.Extensions.Logging.Abstractions;` to the file's `#region Usings` block if not already present.
 
 - [ ] **Step 12.2: Run failing tests**
 
-Run: `dotnet test e:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj --filter "FullyQualifiedName~LibraryProfileServiceTests" -v minimal`
+Run: `dotnet test e:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj --filter "FullyQualifiedName~LibraryProfileServiceTests" -v minimal`
 Expected: 3 new tests fail.
 
 - [ ] **Step 12.3: Implement carry-forward**
 
-Modify `DocRAG.Ingestion/Recon/LibraryProfileService.cs`:
+Modify `SaddleRAG.Ingestion/Recon/LibraryProfileService.cs`:
 
 Replace the body of `SaveAsync`:
 
@@ -2829,7 +2829,7 @@ New:
 
 - [ ] **Step 12.4: Run tests to verify pass**
 
-Run: `dotnet test e:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj --filter "FullyQualifiedName~LibraryProfileServiceTests" -v minimal`
+Run: `dotnet test e:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj --filter "FullyQualifiedName~LibraryProfileServiceTests" -v minimal`
 Expected: PASS. All 3 new tests + existing.
 
 - [ ] **Step 12.5: Commit**
@@ -2846,8 +2846,8 @@ A non-empty incoming Stoplist is never overridden.
 
 Run:
 ```
-git -C e:/GitHub/DocRAG add DocRAG.Ingestion/Recon/LibraryProfileService.cs DocRAG.Tests/Recon/LibraryProfileServiceTests.cs
-git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
+git -C e:/GitHub/SaddleRAG add SaddleRAG.Ingestion/Recon/LibraryProfileService.cs SaddleRAG.Tests/Recon/LibraryProfileServiceTests.cs
+git -C e:/GitHub/SaddleRAG commit -F e:/tmp/msg.txt
 ```
 
 ---
@@ -2855,8 +2855,8 @@ git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
 ## Task 13: `SymbolManagementTools` — the three MCP tools
 
 **Files:**
-- Create: `DocRAG.Mcp/Tools/SymbolManagementTools.cs`
-- Create: `DocRAG.Tests/Mcp/SymbolManagementToolsTests.cs`
+- Create: `SaddleRAG.Mcp/Tools/SymbolManagementTools.cs`
+- Create: `SaddleRAG.Tests/Mcp/SymbolManagementToolsTests.cs`
 
 - [ ] **Step 13.1: Write failing tests**
 
@@ -2868,16 +2868,16 @@ git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
 #region Usings
 
 using System.Text.Json;
-using DocRAG.Core.Enums;
-using DocRAG.Core.Interfaces;
-using DocRAG.Core.Models;
-using DocRAG.Database.Repositories;
-using DocRAG.Mcp.Tools;
+using SaddleRAG.Core.Enums;
+using SaddleRAG.Core.Interfaces;
+using SaddleRAG.Core.Models;
+using SaddleRAG.Database.Repositories;
+using SaddleRAG.Mcp.Tools;
 using NSubstitute;
 
 #endregion
 
-namespace DocRAG.Tests.Mcp;
+namespace SaddleRAG.Tests.Mcp;
 
 public sealed class SymbolManagementToolsTests
 {
@@ -3057,7 +3057,7 @@ public sealed class SymbolManagementToolsTests
 }
 ```
 
-Note: the `RepositoryFactory` mock takes `args: null!` because its constructor takes a `DocRagDbContextFactory`. NSubstitute will create a stand-in via `Substitute.For<RepositoryFactory>(args: null!)`. If that substitution is rejected at runtime (NSubstitute requires concrete classes to be virtual), make `RepositoryFactory.GetLibraryProfileRepository` and `GetExcludedSymbolsRepository` virtual. Both already exist; mark them `virtual` if needed.
+Note: the `RepositoryFactory` mock takes `args: null!` because its constructor takes a `SaddleRagDbContextFactory`. NSubstitute will create a stand-in via `Substitute.For<RepositoryFactory>(args: null!)`. If that substitution is rejected at runtime (NSubstitute requires concrete classes to be virtual), make `RepositoryFactory.GetLibraryProfileRepository` and `GetExcludedSymbolsRepository` virtual. Both already exist; mark them `virtual` if needed.
 
 Check: in Step 4.3 you added `GetExcludedSymbolsRepository` without `virtual`. Look at `GetLibraryRepository` — it's already `virtual`. **Mark `GetExcludedSymbolsRepository` as `virtual`** when adding it (and confirm `GetLibraryProfileRepository` is `virtual`; if not, mark it too at this step). The pattern in the codebase is: any factory method that tests need to mock should be `virtual`.
 
@@ -3065,7 +3065,7 @@ If `GetLibraryProfileRepository` is NOT currently virtual, edit it now to add `v
 
 - [ ] **Step 13.2: Run failing tests**
 
-Run: `dotnet test e:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj --filter "FullyQualifiedName~SymbolManagementToolsTests" -v minimal`
+Run: `dotnet test e:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj --filter "FullyQualifiedName~SymbolManagementToolsTests" -v minimal`
 Expected: FAIL — `SymbolManagementTools` doesn't exist; possibly compile error from non-virtual factory methods.
 
 - [ ] **Step 13.3: Make factory methods virtual if needed**
@@ -3096,14 +3096,14 @@ Same for `GetExcludedSymbolsRepository`.
 using System.ComponentModel;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using DocRAG.Core.Enums;
-using DocRAG.Core.Models;
-using DocRAG.Database.Repositories;
+using SaddleRAG.Core.Enums;
+using SaddleRAG.Core.Models;
+using SaddleRAG.Database.Repositories;
 using ModelContextProtocol.Server;
 
 #endregion
 
-namespace DocRAG.Mcp.Tools;
+namespace SaddleRAG.Mcp.Tools;
 
 /// <summary>
 ///     MCP tools that let a calling LLM review and refine the symbol
@@ -3319,12 +3319,12 @@ public static class SymbolManagementTools
 
 - [ ] **Step 13.5: Run tests to verify pass**
 
-Run: `dotnet test e:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj --filter "FullyQualifiedName~SymbolManagementToolsTests" -v minimal`
+Run: `dotnet test e:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj --filter "FullyQualifiedName~SymbolManagementToolsTests" -v minimal`
 Expected: PASS. All 7 tests.
 
 - [ ] **Step 13.6: Run the full suite**
 
-Run: `dotnet test e:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj -v minimal`
+Run: `dotnet test e:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj -v minimal`
 Expected: PASS — every test, including pre-existing ones.
 
 - [ ] **Step 13.7: Commit**
@@ -3353,8 +3353,8 @@ NSubstitute-based unit tests.
 
 Run:
 ```
-git -C e:/GitHub/DocRAG add DocRAG.Mcp/Tools/SymbolManagementTools.cs DocRAG.Tests/Mcp/SymbolManagementToolsTests.cs DocRAG.Database/Repositories/RepositoryFactory.cs
-git -C e:/GitHub/DocRAG commit -F e:/tmp/msg.txt
+git -C e:/GitHub/SaddleRAG add SaddleRAG.Mcp/Tools/SymbolManagementTools.cs SaddleRAG.Tests/Mcp/SymbolManagementToolsTests.cs SaddleRAG.Database/Repositories/RepositoryFactory.cs
+git -C e:/GitHub/SaddleRAG commit -F e:/tmp/msg.txt
 ```
 
 ---
@@ -3365,19 +3365,19 @@ Manual verification — no commits, no code changes.
 
 - [ ] **Step 14.1: Build clean**
 
-Run: `dotnet build e:/GitHub/DocRAG/DocRAG.slnx -c Debug --nologo -v minimal`
+Run: `dotnet build e:/GitHub/SaddleRAG/SaddleRAG.slnx -c Debug --nologo -v minimal`
 Expected: 0 errors, 0 warnings.
 
 - [ ] **Step 14.2: Run full test suite**
 
-Run: `dotnet test e:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj --no-build -v minimal`
+Run: `dotnet test e:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj --no-build -v minimal`
 Expected: 100% pass.
 
 - [ ] **Step 14.3: Start the side-by-side server in the background**
 
 Run (background):
 ```
-dotnet run --project e:/GitHub/DocRAG/DocRAG.Mcp --launch-profile DevSideBySide --no-build -c Debug
+dotnet run --project e:/GitHub/SaddleRAG/SaddleRAG.Mcp --launch-profile DevSideBySide --no-build -c Debug
 ```
 
 Wait for `/health` on port 6101 to report healthy:
@@ -3442,7 +3442,7 @@ Kill the background process (Ctrl+C in the terminal where it runs, or `KillShell
 **Placeholder scan:** No "TBD"/"TODO"/"implement later"/"appropriate"/"as needed" remain. Every code step contains either complete code or an explicit instruction with the exact location to modify.
 
 **Type consistency:**
-- `SymbolRejectionReason` namespace = `DocRAG.Core.Enums` (Tasks 1, 7, 13).
+- `SymbolRejectionReason` namespace = `SaddleRAG.Core.Enums` (Tasks 1, 7, 13).
 - `ExcludedSymbol.MakeId(libraryId, version, name)` (Task 1) used by `RejectionAccumulator` (Task 9).
 - `IExcludedSymbolsRepository` (Task 3) consumed verbatim by `RescrubService` (Task 11) and `SymbolManagementTools` (Task 13).
 - `RepositoryFactory.GetExcludedSymbolsRepository` (Task 4) used by `RescrubTools` (Task 11) and `SymbolManagementTools` (Task 13). Marked `virtual` in Task 13.

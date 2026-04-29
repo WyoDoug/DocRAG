@@ -1,4 +1,4 @@
-# DocRAG — Claude Code Instructions
+# SaddleRAG — Claude Code Instructions
 
 These rules apply to any Claude Code session working in this repository, regardless of which user is running it. They override Claude Code defaults.
 

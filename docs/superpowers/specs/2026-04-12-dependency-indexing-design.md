@@ -22,7 +22,7 @@ An automated pipeline that scans a project, discovers all package dependencies a
 
 Pipeline with ecosystem plugins. Three interfaces per concern (`IProjectFileParser`, `IPackageRegistryClient`, `IDocUrlResolver`) with implementations per ecosystem. A `DependencyIndexer` orchestrator ties them together. A `ScrapeJobFactory` auto-derives crawl configuration from a URL for the simplified scrape path.
 
-### Core Interfaces (DocRAG.Core)
+### Core Interfaces (SaddleRAG.Core)
 
 #### IProjectFileParser
 
@@ -69,7 +69,7 @@ Resolution cascade (per ecosystem, then shared fallbacks):
 4. Common patterns: `{package}.readthedocs.io`, `docs.{package}.com`, `{package}.github.io`
 5. If all fail: return `DocUrlResolution` with null `DocUrl` and `Source = "none"`
 
-### New Models (DocRAG.Core)
+### New Models (SaddleRAG.Core)
 
 #### PackageDependency
 
@@ -140,7 +140,7 @@ public record PackageIndexStatus
 
 ---
 
-## Ecosystem Implementations (DocRAG.Ingestion)
+## Ecosystem Implementations (SaddleRAG.Ingestion)
 
 ### NuGet
 
@@ -231,7 +231,7 @@ Before scraping, check if `LibraryVersionRecord` exists for `(library_id, versio
 
 ## DependencyIndexer Orchestrator
 
-### Class: `DependencyIndexer` (DocRAG.Ingestion)
+### Class: `DependencyIndexer` (SaddleRAG.Ingestion)
 
 Constructor dependencies (all via DI):
 - `IEnumerable<IProjectFileParser>` — all registered parsers
@@ -333,7 +333,7 @@ Returns Overview-category chunks for a library. If no Overview chunks exist, fal
 
 ## File Organization
 
-### New Files — DocRAG.Core
+### New Files — SaddleRAG.Core
 
 ```
 Core/Interfaces/IProjectFileParser.cs
@@ -345,7 +345,7 @@ Core/Models/DocUrlResolution.cs
 Core/Models/DependencyIndexReport.cs
 ```
 
-### New Files — DocRAG.Ingestion
+### New Files — SaddleRAG.Ingestion
 
 ```
 Ingestion/Scanning/PackageFilter.cs
@@ -367,7 +367,7 @@ Ingestion/Ecosystems/Pip/PipDocUrlResolver.cs
 Ingestion/Ecosystems/Common/CommonDocUrlPatterns.cs
 ```
 
-### New Files — DocRAG.Mcp
+### New Files — SaddleRAG.Mcp
 
 ```
 Mcp/Tools/ScrapeDocsTools.cs

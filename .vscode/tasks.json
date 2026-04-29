@@ -2,12 +2,12 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "build DocRAG.Mcp",
+      "label": "build SaddleRAG.Mcp",
       "type": "process",
       "command": "dotnet",
       "args": [
         "build",
-        "${workspaceFolder}/DocRAG.Mcp/DocRAG.Mcp.csproj"
+        "${workspaceFolder}/SaddleRAG.Mcp/SaddleRAG.Mcp.csproj"
       ],
       "options": {
         "cwd": "${workspaceFolder}"
@@ -24,12 +24,12 @@
       }
     },
     {
-      "label": "rebuild DocRAG solution",
+      "label": "rebuild SaddleRAG solution",
       "type": "process",
       "command": "dotnet",
       "args": [
         "build",
-        "${workspaceFolder}/DocRAG.slnx",
+        "${workspaceFolder}/SaddleRAG.slnx",
         "-t:Rebuild"
       ],
       "options": {
@@ -43,12 +43,12 @@
       }
     },
     {
-      "label": "DocRAG: Build Debug x64",
+      "label": "SaddleRAG: Build Debug x64",
       "type": "process",
       "command": "dotnet",
       "args": [
         "build",
-        "${workspaceFolder}/DocRAG.Mcp/DocRAG.Mcp.csproj",
+        "${workspaceFolder}/SaddleRAG.Mcp/SaddleRAG.Mcp.csproj",
         "--configuration",
         "Debug",
         "-p:Platform=x64",
@@ -65,7 +65,7 @@
       }
     },
     {
-      "label": "DocRAG: Stop Service",
+      "label": "SaddleRAG: Stop Service",
       "type": "process",
       "command": "powershell.exe",
       "args": [
@@ -82,7 +82,7 @@
       }
     },
     {
-      "label": "DocRAG: Start Service",
+      "label": "SaddleRAG: Start Service",
       "type": "process",
       "command": "powershell.exe",
       "args": [
@@ -99,7 +99,7 @@
       }
     },
     {
-      "label": "DocRAG: Restart Service",
+      "label": "SaddleRAG: Restart Service",
       "type": "process",
       "command": "powershell.exe",
       "args": [
@@ -116,7 +116,7 @@
       }
     },
     {
-      "label": "DocRAG: Service Status",
+      "label": "SaddleRAG: Service Status",
       "type": "process",
       "command": "powershell.exe",
       "args": [
@@ -133,7 +133,7 @@
       }
     },
     {
-      "label": "DocRAG: Health Check",
+      "label": "SaddleRAG: Health Check",
       "type": "process",
       "command": "powershell.exe",
       "args": [
@@ -150,7 +150,7 @@
       }
     },
     {
-      "label": "DocRAG: Grant Service Control (one-time, requires UAC)",
+      "label": "SaddleRAG: Grant Service Control (one-time, requires UAC)",
       "type": "process",
       "command": "powershell.exe",
       "args": [
@@ -168,7 +168,7 @@
       "problemMatcher": []
     },
     {
-      "label": "DocRAG: Verify Service Control Grant",
+      "label": "SaddleRAG: Verify Service Control Grant",
       "type": "process",
       "command": "powershell.exe",
       "args": [
@@ -187,7 +187,7 @@
       "problemMatcher": []
     },
     {
-      "label": "DocRAG: Tail Logs",
+      "label": "SaddleRAG: Tail Logs",
       "type": "process",
       "command": "powershell.exe",
       "args": [
@@ -205,22 +205,22 @@
       }
     },
     {
-      "label": "DocRAG: Pre-Debug",
+      "label": "SaddleRAG: Pre-Debug",
       "dependsOn": [
-        "DocRAG: Stop Service",
-        "DocRAG: Build Debug x64"
+        "SaddleRAG: Stop Service",
+        "SaddleRAG: Build Debug x64"
       ],
       "dependsOrder": "sequence",
       "problemMatcher": []
     },
     {
-      "label": "DocRAG: Watch (port 6100)",
+      "label": "SaddleRAG: Watch (port 6100)",
       "type": "process",
       "command": "dotnet",
       "args": [
         "watch",
         "--project",
-        "${workspaceFolder}/DocRAG.Mcp",
+        "${workspaceFolder}/SaddleRAG.Mcp",
         "run",
         "-p:Platform=x64",
         "--launch-profile",
@@ -237,13 +237,13 @@
       "problemMatcher": []
     },
     {
-      "label": "DocRAG: Watch (Side-by-Side, port 6101)",
+      "label": "SaddleRAG: Watch (Side-by-Side, port 6101)",
       "type": "process",
       "command": "dotnet",
       "args": [
         "watch",
         "--project",
-        "${workspaceFolder}/DocRAG.Mcp",
+        "${workspaceFolder}/SaddleRAG.Mcp",
         "run",
         "-p:Platform=x64",
         "--launch-profile",

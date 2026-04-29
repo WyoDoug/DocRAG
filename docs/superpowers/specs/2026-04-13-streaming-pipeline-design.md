@@ -199,16 +199,16 @@ Streaming removes the memory pressure that justified low limits — pages are in
 
 | File | Change |
 |---|---|
-| `DocRAG.Ingestion/IngestionOrchestrator.cs` | Rewrite IngestAsync to channel-based pipeline |
-| `DocRAG.Ingestion/Crawling/PageCrawler.cs` | Add ChannelWriter output, resumeUrls parameter, PagesQueued reporting |
-| `DocRAG.Core/Models/ScrapeJobRecord.cs` | Add new counter fields, replace CurrentPhase with PipelineState |
-| `DocRAG.Core/Models/ScrapeJob.cs` | No structural change (MaxPages default unchanged at model level) |
-| `DocRAG.Ingestion/Scanning/ScrapeJobFactory.cs` | DefaultMaxPages 500 → 2500 |
-| `DocRAG.Ingestion/ScrapeJobRunner.cs` | Update progress callback handling for new counters |
-| `DocRAG.Mcp/Tools/ScrapeDocsTools.cs` | MaxPages default 500 → 2500, add continue_scrape tool |
-| `DocRAG.Mcp/Tools/IngestionTools.cs` | Update status reporting for new counters |
-| `DocRAG.Mcp/Program.cs` | Remove HeuristicClassifier registration |
-| `DocRAG.Cli/Program.cs` | Remove HeuristicClassifier registration, update progress display |
-| `DocRAG.Ingestion/Classification/HeuristicClassifier.cs` | **Delete** |
-| `DocRAG.Tests/Classification/HeuristicClassifierTests.cs` | **Delete** (if exists) |
-| `DocRAG.Tests/Scanning/ScrapeJobFactoryTests.cs` | Update DefaultMaxPages assertion |
+| `SaddleRAG.Ingestion/IngestionOrchestrator.cs` | Rewrite IngestAsync to channel-based pipeline |
+| `SaddleRAG.Ingestion/Crawling/PageCrawler.cs` | Add ChannelWriter output, resumeUrls parameter, PagesQueued reporting |
+| `SaddleRAG.Core/Models/ScrapeJobRecord.cs` | Add new counter fields, replace CurrentPhase with PipelineState |
+| `SaddleRAG.Core/Models/ScrapeJob.cs` | No structural change (MaxPages default unchanged at model level) |
+| `SaddleRAG.Ingestion/Scanning/ScrapeJobFactory.cs` | DefaultMaxPages 500 → 2500 |
+| `SaddleRAG.Ingestion/ScrapeJobRunner.cs` | Update progress callback handling for new counters |
+| `SaddleRAG.Mcp/Tools/ScrapeDocsTools.cs` | MaxPages default 500 → 2500, add continue_scrape tool |
+| `SaddleRAG.Mcp/Tools/IngestionTools.cs` | Update status reporting for new counters |
+| `SaddleRAG.Mcp/Program.cs` | Remove HeuristicClassifier registration |
+| `SaddleRAG.Cli/Program.cs` | Remove HeuristicClassifier registration, update progress display |
+| `SaddleRAG.Ingestion/Classification/HeuristicClassifier.cs` | **Delete** |
+| `SaddleRAG.Tests/Classification/HeuristicClassifierTests.cs` | **Delete** (if exists) |
+| `SaddleRAG.Tests/Scanning/ScrapeJobFactoryTests.cs` | Update DefaultMaxPages assertion |

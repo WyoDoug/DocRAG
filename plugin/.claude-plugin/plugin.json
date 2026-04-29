@@ -1,6 +1,6 @@
 {
-  "name": "docrag",
-  "description": "DocRAG — query indexed documentation before answering coding questions. Registers the DocRAG MCP server and bundles a docrag-first skill that triggers on coding tasks.",
+  "name": "saddlerag",
+  "description": "SaddleRAG — query indexed documentation before answering coding questions. Registers the SaddleRAG MCP server and bundles a saddlerag-first skill that triggers on coding tasks.",
   "author": {
     "name": "Doug Gerard"
   }

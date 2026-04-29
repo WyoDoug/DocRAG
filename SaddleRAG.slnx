@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/Solution/">
+    <File Path=".editorconfig" />
+    <File Path=".gitignore" />
+    <File Path="LICENSE.txt" />
+    <File Path="nuget.config" />
+  </Folder>
+  <Project Path="SaddleRAG.Cli/SaddleRAG.Cli.csproj" />
+  <Project Path="SaddleRAG.Core/SaddleRAG.Core.csproj" />
+  <Project Path="SaddleRAG.Database/SaddleRAG.Database.csproj" />
+  <Project Path="SaddleRAG.Ingestion/SaddleRAG.Ingestion.csproj" />
+  <Project Path="SaddleRAG.Mcp/SaddleRAG.Mcp.csproj" />
+  <Project Path="SaddleRAG.Tests/SaddleRAG.Tests.csproj" />
+</Solution>

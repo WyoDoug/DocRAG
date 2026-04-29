@@ -56,16 +56,16 @@ jobs:
           Write-Host "Version: $version (MSI: $msiVersion, Prerelease: $isPrerelease)"
 
       - name: Restore
-        run: dotnet restore DocRAG.slnx
+        run: dotnet restore SaddleRAG.slnx
 
       - name: Build
-        run: dotnet build DocRAG.slnx --configuration Release --no-restore -p:TreatWarningsAsErrors=true -p:Version=${{ env.PackageVersion }}
+        run: dotnet build SaddleRAG.slnx --configuration Release --no-restore -p:TreatWarningsAsErrors=true -p:Version=${{ env.PackageVersion }}
 
       - name: Test
-        run: dotnet test DocRAG.slnx --configuration Release --no-build
+        run: dotnet test SaddleRAG.slnx --configuration Release --no-build
 
       - name: Publish
-        run: dotnet publish DocRAG.Mcp/DocRAG.Mcp.csproj --configuration Release --runtime win-x64 --self-contained true --output ./artifacts/${{ env.PackageVersion }}/publish -p:Version=${{ env.PackageVersion }}
+        run: dotnet publish SaddleRAG.Mcp/SaddleRAG.Mcp.csproj --configuration Release --runtime win-x64 --self-contained true --output ./artifacts/${{ env.PackageVersion }}/publish -p:Version=${{ env.PackageVersion }}
 
       - name: Install WiX
         run: dotnet tool install --global wix --version 5.0.2
@@ -76,19 +76,19 @@ jobs:
           wix extension add WixToolset.UI.wixext/5.0.2
 
       - name: Build MSI
-        run: wix build DocRAG.Installer/Package.wxs -d PublishDir=${{ github.workspace }}/artifacts/${{ env.PackageVersion }}/publish -d Version=${{ env.MsiVersion }} -ext WixToolset.Util.wixext -ext WixToolset.UI.wixext -arch x64 -o ./artifacts/${{ env.PackageVersion }}/DocRAG.Mcp.msi
+        run: wix build SaddleRAG.Installer/Package.wxs -d PublishDir=${{ github.workspace }}/artifacts/${{ env.PackageVersion }}/publish -d Version=${{ env.MsiVersion }} -ext WixToolset.Util.wixext -ext WixToolset.UI.wixext -arch x64 -o ./artifacts/${{ env.PackageVersion }}/SaddleRAG.Mcp.msi
 
       - name: Upload MSI artifact
         uses: actions/upload-artifact@v4
         with:
-          name: DocRAG.Mcp-${{ env.PackageVersion }}
-          path: ./artifacts/${{ env.PackageVersion }}/DocRAG.Mcp.msi
+          name: SaddleRAG.Mcp-${{ env.PackageVersion }}
+          path: ./artifacts/${{ env.PackageVersion }}/SaddleRAG.Mcp.msi
 
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: ./artifacts/${{ env.PackageVersion }}/DocRAG.Mcp.msi
+          files: ./artifacts/${{ env.PackageVersion }}/SaddleRAG.Mcp.msi
           prerelease: ${{ env.IsPrerelease }}
 
       - name: Kill orphan processes

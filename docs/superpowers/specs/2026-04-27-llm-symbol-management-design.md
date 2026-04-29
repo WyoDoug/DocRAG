@@ -29,7 +29,7 @@ Phase 1 (already shipped on this branch) cleaned up most extractor noise via rul
 
 ## Data Model
 
-### New enum — `DocRAG.Core/Enums/SymbolRejectionReason.cs`
+### New enum — `SaddleRAG.Core/Enums/SymbolRejectionReason.cs`
 
 ```
 GlobalStoplist     // hit the universal Stoplist
@@ -40,7 +40,7 @@ LikelyAbbreviation // prose-frequent path was the only way through, blocked by I
 NoStructureSignal  // failed all keep rules in ShouldKeep()
 ```
 
-### New record — `DocRAG.Core/Models/ExcludedSymbol.cs`
+### New record — `SaddleRAG.Core/Models/ExcludedSymbol.cs`
 
 ```csharp
 public record ExcludedSymbol
@@ -73,13 +73,13 @@ Indexes:
 - Compound `{ LibraryId: 1, Version: 1, Reason: 1 }` for `list_excluded_symbols` reason filter.
 - Compound `{ LibraryId: 1, Version: 1, Name: 1 }` for fast remove-by-name on promotion/demotion.
 
-Created in `DocRagDbContext.EnsureIndexesAsync` alongside existing collections.
+Created in `SaddleRagDbContext.EnsureIndexesAsync` alongside existing collections.
 
 ## Component Changes
 
 ### 1. `Stoplist` — profile-aware overload
 
-`DocRAG.Ingestion/Symbols/Stoplist.cs`:
+`SaddleRAG.Ingestion/Symbols/Stoplist.cs`:
 
 ```csharp
 public enum StoplistMatch { None, Global, Library }
@@ -92,9 +92,9 @@ public static StoplistMatch Match(string candidate, LibraryProfile profile);
 
 ### 2. `SymbolExtractor` — return rejections
 
-`DocRAG.Ingestion/Symbols/SymbolExtractor.cs`:
+`SaddleRAG.Ingestion/Symbols/SymbolExtractor.cs`:
 
-- New record in `DocRAG.Ingestion/Symbols/RejectedToken.cs`:
+- New record in `SaddleRAG.Ingestion/Symbols/RejectedToken.cs`:
   ```csharp
   public record RejectedToken
   {
@@ -116,7 +116,7 @@ No change to which tokens are kept vs rejected — only the labeling.
 
 ### 3. Sample-window helper
 
-New file `DocRAG.Ingestion/Symbols/SampleWindowExtractor.cs`:
+New file `SaddleRAG.Ingestion/Symbols/SampleWindowExtractor.cs`:
 
 - Locates the first occurrence of a token name in chunk content (case-sensitive, exact match).
 - Takes ~100 chars before + the token + ~100 chars after, trims to nearest whitespace at each end.
@@ -126,7 +126,7 @@ New file `DocRAG.Ingestion/Symbols/SampleWindowExtractor.cs`:
 
 ### 4. Rejection accumulator
 
-New file `DocRAG.Ingestion/Recon/RejectionAccumulator.cs`:
+New file `SaddleRAG.Ingestion/Recon/RejectionAccumulator.cs`:
 
 Constructed once per rescrub with the total chunk count. For each `RejectedToken` paired with the chunk it came from:
 - Records the reason (first-seen wins; conflicts are rare since reason is deterministic from token shape).
@@ -137,7 +137,7 @@ Constructed once per rescrub with the total chunk count. For each `RejectedToken
 
 ### 5. `RescrubService` — wire rejections through
 
-`DocRAG.Ingestion/Recon/RescrubService.cs`:
+`SaddleRAG.Ingestion/Recon/RescrubService.cs`:
 
 - New `IExcludedSymbolsRepository` parameter on `RescrubAsync` (threaded from `RescrubTools`).
 - After loading chunks, build `RejectionAccumulator(totalChunkCount)`.
@@ -164,14 +164,14 @@ These steps are OPTIONAL — only worth running if symbol coverage looks wrong o
 
 ### 6. Profile carry-forward
 
-`DocRAG.Ingestion/Recon/LibraryProfileService.cs` — when persisting a new profile via `UpsertAsync`:
+`SaddleRAG.Ingestion/Recon/LibraryProfileService.cs` — when persisting a new profile via `UpsertAsync`:
 
 - If the new profile's `Stoplist` is empty AND a prior version's profile for the same `LibraryId` exists with a non-empty `Stoplist`, copy the prior `Stoplist` onto the new profile before writing.
 - LLM-provided non-empty stoplists are never overridden by carry-forward.
 
 ### 7. Repository
 
-New `DocRAG.Core/Interfaces/IExcludedSymbolsRepository.cs`:
+New `SaddleRAG.Core/Interfaces/IExcludedSymbolsRepository.cs`:
 
 ```csharp
 public interface IExcludedSymbolsRepository
@@ -190,14 +190,14 @@ public interface IExcludedSymbolsRepository
 }
 ```
 
-Implementation in `DocRAG.Database/Repositories/ExcludedSymbolsRepository.cs`. Registered in:
+Implementation in `SaddleRAG.Database/Repositories/ExcludedSymbolsRepository.cs`. Registered in:
 - `RepositoryFactory.GetExcludedSymbolsRepository(profile)`.
 - `ServiceCollectionExtensions` (singleton, same pattern as other repos).
-- `DocRagDbContext.ExcludedSymbols` collection accessor.
+- `SaddleRagDbContext.ExcludedSymbols` collection accessor.
 
 `ListAsync` sorts by `ChunkCount` descending so most-prevalent noise surfaces first.
 
-### 8. MCP tools — `DocRAG.Mcp/Tools/SymbolManagementTools.cs`
+### 8. MCP tools — `SaddleRAG.Mcp/Tools/SymbolManagementTools.cs`
 
 Static class with `[McpServerToolType]`. Three `[McpServerTool]` methods.
 
@@ -258,7 +258,7 @@ Mirror image of `add_to_likely_symbols`. Same six-step logic, swapped lists. Ret
 
 ### 9. Existing tools
 
-`DocRAG.Mcp/Tools/RescrubTools.cs` — output now includes `ExcludedCount` and `Hints` fields (already on `RescrubResult` via Component 5). No signature change. `WithToolsFromAssembly()` already picks up the new tool class.
+`SaddleRAG.Mcp/Tools/RescrubTools.cs` — output now includes `ExcludedCount` and `Hints` fields (already on `RescrubResult` via Component 5). No signature change. `WithToolsFromAssembly()` already picks up the new tool class.
 
 ## Data Flow
 
@@ -306,19 +306,19 @@ Code follows the strict CLAUDE.md standards already enforced in this repo:
 
 | File | Coverage |
 |---|---|
-| `DocRAG.Tests/Symbols/SymbolExtractorTests.cs` (extend) | Reason mapping per path; profile-stoplist override of LikelySymbols; `LikelyAbbreviation` vs `NoStructureSignal` disambiguation |
-| `DocRAG.Tests/Symbols/StoplistTests.cs` (extend) | Profile-aware `Match` returns correct enum; case-insensitivity on profile stoplist |
-| `DocRAG.Tests/Symbols/SampleWindowExtractorTests.cs` (new) | 200-char cap; whitespace trim; token at start/end of chunk; multiple occurrences; missing token returns null |
-| `DocRAG.Tests/Recon/RejectionAccumulatorTests.cs` (new) | Thirds bucketing for sample selection; ChunkCount aggregation; first-seen reason wins |
-| `DocRAG.Tests/Recon/RescrubServiceTests.cs` (extend) | Hint thresholds (5% AND ≥20); dry-run does not persist; delete-all-then-upsert leaves no stale rows |
-| `DocRAG.Tests/Recon/LibraryProfileServiceTests.cs` (extend) | New profile inherits prior version's Stoplist when empty; non-empty Stoplist not overridden |
-| `DocRAG.Tests/Mcp/SymbolManagementToolsTests.cs` (new) | `list_excluded_symbols` round-trip; `add_to_likely_symbols`/`add_to_stoplist` mutate and report overrides; both wipe matching excluded entries; empty `names` errors |
+| `SaddleRAG.Tests/Symbols/SymbolExtractorTests.cs` (extend) | Reason mapping per path; profile-stoplist override of LikelySymbols; `LikelyAbbreviation` vs `NoStructureSignal` disambiguation |
+| `SaddleRAG.Tests/Symbols/StoplistTests.cs` (extend) | Profile-aware `Match` returns correct enum; case-insensitivity on profile stoplist |
+| `SaddleRAG.Tests/Symbols/SampleWindowExtractorTests.cs` (new) | 200-char cap; whitespace trim; token at start/end of chunk; multiple occurrences; missing token returns null |
+| `SaddleRAG.Tests/Recon/RejectionAccumulatorTests.cs` (new) | Thirds bucketing for sample selection; ChunkCount aggregation; first-seen reason wins |
+| `SaddleRAG.Tests/Recon/RescrubServiceTests.cs` (extend) | Hint thresholds (5% AND ≥20); dry-run does not persist; delete-all-then-upsert leaves no stale rows |
+| `SaddleRAG.Tests/Recon/LibraryProfileServiceTests.cs` (extend) | New profile inherits prior version's Stoplist when empty; non-empty Stoplist not overridden |
+| `SaddleRAG.Tests/Mcp/SymbolManagementToolsTests.cs` (new) | `list_excluded_symbols` round-trip; `add_to_likely_symbols`/`add_to_stoplist` mutate and report overrides; both wipe matching excluded entries; empty `names` errors |
 
 ## End-to-End Verification
 
-1. `dotnet build e:/GitHub/DocRAG/DocRAG.slnx -c Debug --nologo -v minimal`
-2. `dotnet test e:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj --no-build -v minimal`
-3. Side-by-side server: `dotnet run --project e:/GitHub/DocRAG/DocRAG.Mcp --launch-profile DevSideBySide --no-build -c Debug` (port 6101)
+1. `dotnet build e:/GitHub/SaddleRAG/SaddleRAG.slnx -c Debug --nologo -v minimal`
+2. `dotnet test e:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj --no-build -v minimal`
+3. Side-by-side server: `dotnet run --project e:/GitHub/SaddleRAG/SaddleRAG.Mcp --launch-profile DevSideBySide --no-build -c Debug` (port 6101)
 4. `rescrub_library aerotech-aeroscript 1.0` — expect populated `library_excluded_symbols`, hint fires.
 5. `list_excluded_symbols aerotech-aeroscript 1.0 limit=20` — confirm residual noise (`RealTek`, `_QUAD_COPPER`, `AFuwU`, `along`, `data`, `enumerator`, `integer`) appears with reasons + samples.
 6. `add_to_stoplist aerotech-aeroscript 1.0 ["along","data","enumerator","integer"]`.
@@ -329,24 +329,24 @@ Code follows the strict CLAUDE.md standards already enforced in this repo:
 
 | File | Change |
 |---|---|
-| `DocRAG.Core/Enums/SymbolRejectionReason.cs` | New |
-| `DocRAG.Core/Models/ExcludedSymbol.cs` | New |
-| `DocRAG.Core/Models/LibraryProfile.cs` | Add `Stoplist` field; bump schema version |
-| `DocRAG.Core/Interfaces/IExcludedSymbolsRepository.cs` | New |
-| `DocRAG.Database/DocRagDbContext.cs` | Register `ExcludedSymbols` collection + indexes |
-| `DocRAG.Database/Repositories/ExcludedSymbolsRepository.cs` | New |
-| `DocRAG.Database/Repositories/RepositoryFactory.cs` | Add `GetExcludedSymbolsRepository(profile)` |
-| `DocRAG.Database/ServiceCollectionExtensions.cs` | Register new repo |
-| `DocRAG.Ingestion/Symbols/Stoplist.cs` | Add profile-aware `Match` + `StoplistMatch` enum |
-| `DocRAG.Ingestion/Symbols/SymbolExtractor.cs` | Return rejection records; reason resolution order |
-| `DocRAG.Ingestion/Symbols/RejectedToken.cs` | New |
-| `DocRAG.Ingestion/Symbols/ExtractedSymbols.cs` | Add `Rejected` list |
-| `DocRAG.Ingestion/Symbols/SampleWindowExtractor.cs` | New |
-| `DocRAG.Ingestion/Recon/RejectionAccumulator.cs` | New |
-| `DocRAG.Ingestion/Recon/RescrubService.cs` | Wire rejection capture + hint computation |
-| `DocRAG.Ingestion/Recon/LibraryProfileService.cs` | Stoplist carry-forward on UpsertAsync |
-| `DocRAG.Mcp/Tools/SymbolManagementTools.cs` | New (3 MCP tools) |
-| `DocRAG.Mcp/Tools/RescrubTools.cs` | None (new fields ride on `RescrubResult`) |
+| `SaddleRAG.Core/Enums/SymbolRejectionReason.cs` | New |
+| `SaddleRAG.Core/Models/ExcludedSymbol.cs` | New |
+| `SaddleRAG.Core/Models/LibraryProfile.cs` | Add `Stoplist` field; bump schema version |
+| `SaddleRAG.Core/Interfaces/IExcludedSymbolsRepository.cs` | New |
+| `SaddleRAG.Database/SaddleRagDbContext.cs` | Register `ExcludedSymbols` collection + indexes |
+| `SaddleRAG.Database/Repositories/ExcludedSymbolsRepository.cs` | New |
+| `SaddleRAG.Database/Repositories/RepositoryFactory.cs` | Add `GetExcludedSymbolsRepository(profile)` |
+| `SaddleRAG.Database/ServiceCollectionExtensions.cs` | Register new repo |
+| `SaddleRAG.Ingestion/Symbols/Stoplist.cs` | Add profile-aware `Match` + `StoplistMatch` enum |
+| `SaddleRAG.Ingestion/Symbols/SymbolExtractor.cs` | Return rejection records; reason resolution order |
+| `SaddleRAG.Ingestion/Symbols/RejectedToken.cs` | New |
+| `SaddleRAG.Ingestion/Symbols/ExtractedSymbols.cs` | Add `Rejected` list |
+| `SaddleRAG.Ingestion/Symbols/SampleWindowExtractor.cs` | New |
+| `SaddleRAG.Ingestion/Recon/RejectionAccumulator.cs` | New |
+| `SaddleRAG.Ingestion/Recon/RescrubService.cs` | Wire rejection capture + hint computation |
+| `SaddleRAG.Ingestion/Recon/LibraryProfileService.cs` | Stoplist carry-forward on UpsertAsync |
+| `SaddleRAG.Mcp/Tools/SymbolManagementTools.cs` | New (3 MCP tools) |
+| `SaddleRAG.Mcp/Tools/RescrubTools.cs` | None (new fields ride on `RescrubResult`) |
 | Test files | See Testing Strategy table above |
 
 ## Commit Plan
