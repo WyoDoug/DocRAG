@@ -174,8 +174,7 @@ var allowedOption = new Option<string[]>(AllowedOptionName, AllowedOptionDescrip
 var excludedOption = new Option<string[]>(ExcludedOptionName, ExcludedOptionDescription)
                          { AllowMultipleArgumentsPerToken = true };
 var maxPagesOption = new Option<int>(MaxPagesOptionName, () => 0, "Max pages to crawl (0 = unlimited)");
-const int DefaultFetchDelayMs = 1000;
-var delayOption = new Option<int>(DelayOptionName, () => DefaultFetchDelayMs, DelayOptionDescription);
+var delayOption = new Option<int>(DelayOptionName, () => ScrapeJob.DefaultFetchDelayMs, DelayOptionDescription);
 
 ingestCommand.AddOption(rootUrlOption);
 ingestCommand.AddOption(libraryIdOption);

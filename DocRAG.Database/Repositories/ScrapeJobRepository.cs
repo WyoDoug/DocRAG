@@ -64,9 +64,19 @@ public class ScrapeJobRepository : IScrapeJobRepository
     }
 
     /// <inheritdoc />
-    public async Task<ScrapeJobRecord?> GetActiveJobAsync(string libraryId,
-                                                          string version,
-                                                          CancellationToken ct = default)
+    public async Task<IReadOnlyList<ScrapeJobRecord>> ListRunningJobsAsync(CancellationToken ct = default)
+    {
+        var filter = Builders<ScrapeJobRecord>.Filter.Eq(j => j.Status, ScrapeJobStatus.Running);
+        var results = await mContext.ScrapeJobs.Find(filter)
+                                    .SortByDescending(j => j.CreatedAt)
+                                    .ToListAsync(ct);
+        return results;
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<ScrapeJobRecord>> ListActiveJobsAsync(string libraryId,
+                                                                           string version,
+                                                                           CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(libraryId);
         ArgumentException.ThrowIfNullOrEmpty(version);
@@ -76,9 +86,23 @@ public class ScrapeJobRepository : IScrapeJobRepository
             Builders<ScrapeJobRecord>.Filter.Eq(JobVersionPath, version),
             Builders<ScrapeJobRecord>.Filter.In(j => j.Status, new[] { ScrapeJobStatus.Queued, ScrapeJobStatus.Running })
         );
-        var result = await mContext.ScrapeJobs.Find(filter)
-                                   .SortByDescending(j => j.CreatedAt)
-                                   .FirstOrDefaultAsync(ct);
+        var results = await mContext.ScrapeJobs.Find(filter)
+                                    .SortByDescending(j => j.CreatedAt)
+                                    .ToListAsync(ct);
+        return results;
+    }
+
+    /// <inheritdoc />
+    public async Task<ScrapeJobRecord?> GetActiveJobAsync(string libraryId,
+                                                          string version,
+                                                          CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(libraryId);
+        ArgumentException.ThrowIfNullOrEmpty(version);
+
+        var candidates = await ListActiveJobsAsync(libraryId, version, ct);
+        var staleCutoff = DateTime.UtcNow - ScrapeJobThresholds.StaleRunning;
+        var result = candidates.FirstOrDefault(j => !ScrapeJobThresholds.IsStaleRunning(j, staleCutoff));
         return result;
     }
 }

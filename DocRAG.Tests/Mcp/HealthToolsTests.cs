@@ -2,6 +2,7 @@
 // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
 // Use subject to the MIT License.
 
+using DocRAG.Core.Enums;
 using DocRAG.Core.Interfaces;
 using DocRAG.Core.Models;
 using DocRAG.Database.Repositories;
@@ -15,7 +16,7 @@ public sealed class HealthToolsTests
     [Fact]
     public async Task GetLibraryHealthReturnsExpectedShape()
     {
-        var (factory, libraryRepo, chunkRepo) = MakeFactory();
+        var (factory, libraryRepo, chunkRepo, _) = MakeFactory();
         libraryRepo.GetLibraryAsync("foo", Arg.Any<CancellationToken>())
                    .Returns(new LibraryRecord
                                 {
@@ -50,14 +51,13 @@ public sealed class HealthToolsTests
         Assert.Contains("\"chunkCount\": 250", json);
         Assert.Contains("\"boundaryIssuePct\": 7", json);
         Assert.Contains("\"languageMix\":", json);
-        // BoundaryIssuePct=7 falls in the 5 <= pct < 10 range
         Assert.Contains("rechunk_library may help", json);
     }
 
     [Fact]
     public async Task GetLibraryHealthNotFoundReturnsErrorJson()
     {
-        var (factory, libraryRepo, _) = MakeFactory();
+        var (factory, libraryRepo, _, _) = MakeFactory();
         libraryRepo.GetLibraryAsync("missing", Arg.Any<CancellationToken>()).Returns((LibraryRecord?) null);
 
         var json = await HealthTools.GetLibraryHealth(factory, library: "missing", version: null, profile: null,
@@ -69,7 +69,7 @@ public sealed class HealthToolsTests
     [Fact]
     public async Task GetLibraryHealthHighBoundaryPctRecommendsRechunk()
     {
-        var (factory, libraryRepo, chunkRepo) = MakeFactory();
+        var (factory, libraryRepo, chunkRepo, _) = MakeFactory();
         libraryRepo.GetLibraryAsync("foo", Arg.Any<CancellationToken>())
                    .Returns(new LibraryRecord
                                 {
@@ -96,19 +96,14 @@ public sealed class HealthToolsTests
         var json = await HealthTools.GetLibraryHealth(factory, library: "foo", version: null, profile: null,
                                                      ct: TestContext.Current.CancellationToken);
 
-        // BoundaryIssuePct=12 is >= 10% threshold
         Assert.Contains("rechunk_library recommended", json);
     }
 
     [Fact]
     public async Task GetDashboardIndexEmptyDbRecommendsIngestion()
     {
-        var (factory, libraryRepo, _) = MakeFactory();
+        var (factory, libraryRepo, _, _) = MakeFactory();
         libraryRepo.GetAllLibrariesAsync(Arg.Any<CancellationToken>()).Returns(Array.Empty<LibraryRecord>());
-
-        var jobRepo = Substitute.For<IScrapeJobRepository>();
-        factory.GetScrapeJobRepository(Arg.Any<string?>()).Returns(jobRepo);
-        jobRepo.ListRecentAsync(Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(Array.Empty<ScrapeJobRecord>());
 
         var json = await HealthTools.GetDashboardIndex(factory, profile: null,
                                                        ct: TestContext.Current.CancellationToken);
@@ -120,7 +115,7 @@ public sealed class HealthToolsTests
     [Fact]
     public async Task GetDashboardIndexPopulatedDbAggregatesAcrossLibraries()
     {
-        var (factory, libraryRepo, _) = MakeFactory();
+        var (factory, libraryRepo, _, _) = MakeFactory();
         libraryRepo.GetAllLibrariesAsync(Arg.Any<CancellationToken>())
                    .Returns(new[]
                                 {
@@ -152,10 +147,6 @@ public sealed class HealthToolsTests
                                     SuspectReasons = Array.Empty<string>()
                                 });
 
-        var jobRepo = Substitute.For<IScrapeJobRepository>();
-        factory.GetScrapeJobRepository(Arg.Any<string?>()).Returns(jobRepo);
-        jobRepo.ListRecentAsync(Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(Array.Empty<ScrapeJobRecord>());
-
         var json = await HealthTools.GetDashboardIndex(factory, profile: null,
                                                        ct: TestContext.Current.CancellationToken);
 
@@ -164,13 +155,151 @@ public sealed class HealthToolsTests
         Assert.Contains("\"a\"", json);
     }
 
-    private static (RepositoryFactory factory, ILibraryRepository libraryRepo, IChunkRepository chunkRepo) MakeFactory()
+    [Fact]
+    public async Task GetDashboardIndexIncludesOrphanRunningJobsOutsideRecentWindow()
+    {
+        var (factory, libraryRepo, _, jobRepo) = MakeFactory();
+        libraryRepo.GetAllLibrariesAsync(Arg.Any<CancellationToken>()).Returns(Array.Empty<LibraryRecord>());
+
+        var orphan = MakeJobRecord(id: "orphan-1",
+                                    library: "mongodb.driver",
+                                    version: "3.4.0",
+                                    status: ScrapeJobStatus.Running,
+                                    createdAt: DateTime.UtcNow - TimeSpan.FromDays(14),
+                                    lastProgressAt: DateTime.UtcNow - TimeSpan.FromDays(14));
+        var fresh = MakeJobRecord(id: "fresh-1",
+                                   library: "foo",
+                                   version: "1.0",
+                                   status: ScrapeJobStatus.Completed,
+                                   createdAt: DateTime.UtcNow - TimeSpan.FromMinutes(5),
+                                   lastProgressAt: null);
+
+        jobRepo.ListRecentAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
+               .Returns(new[] { fresh });
+        jobRepo.ListRunningJobsAsync(Arg.Any<CancellationToken>())
+               .Returns(new[] { orphan });
+
+        var json = await HealthTools.GetDashboardIndex(factory, profile: null,
+                                                       ct: TestContext.Current.CancellationToken);
+
+        Assert.Contains("\"orphan-1\"", json);
+        Assert.Contains("\"fresh-1\"", json);
+    }
+
+    [Fact]
+    public async Task GetDashboardIndexProjectionUsesPascalCaseStaleAndPipelineState()
+    {
+        var (factory, libraryRepo, _, jobRepo) = MakeFactory();
+        libraryRepo.GetAllLibrariesAsync(Arg.Any<CancellationToken>())
+                   .Returns(new[]
+                                {
+                                    new LibraryRecord { Id = "a", Name = "a", Hint = "h", CurrentVersion = "1.0", AllVersions = new() { "1.0" } }
+                                });
+        libraryRepo.GetVersionAsync("a", "1.0", Arg.Any<CancellationToken>())
+                   .Returns(new LibraryVersionRecord
+                                {
+                                    Id = "a/1.0", LibraryId = "a", Version = "1.0",
+                                    ScrapedAt = DateTime.UtcNow,
+                                    PageCount = 1, ChunkCount = 1,
+                                    EmbeddingProviderId = "ollama",
+                                    EmbeddingModelName = "nomic-embed-text",
+                                    EmbeddingDimensions = 768
+                                });
+
+        var orphan = MakeJobRecord(id: "stale-running",
+                                    library: "a",
+                                    version: "1.0",
+                                    status: ScrapeJobStatus.Running,
+                                    createdAt: DateTime.UtcNow - TimeSpan.FromDays(2),
+                                    lastProgressAt: DateTime.UtcNow - TimeSpan.FromDays(2));
+        jobRepo.ListRecentAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
+               .Returns(new[] { orphan });
+        jobRepo.ListRunningJobsAsync(Arg.Any<CancellationToken>())
+               .Returns(new[] { orphan });
+
+        var json = await HealthTools.GetDashboardIndex(factory, profile: null,
+                                                       ct: TestContext.Current.CancellationToken);
+
+        Assert.Contains("\"Stale\": true", json);
+        Assert.DoesNotContain("\"stale\":", json);
+        Assert.Contains("\"PipelineState\": \"Running\"", json);
+    }
+
+    [Fact]
+    public async Task GetDashboardIndexSuggestsCancelScrapeWhenStaleOrphanPresent()
+    {
+        var (factory, libraryRepo, _, jobRepo) = MakeFactory();
+        libraryRepo.GetAllLibrariesAsync(Arg.Any<CancellationToken>())
+                   .Returns(new[]
+                                {
+                                    new LibraryRecord { Id = "a", Name = "a", Hint = "h", CurrentVersion = "1.0", AllVersions = new() { "1.0" } }
+                                });
+        libraryRepo.GetVersionAsync("a", "1.0", Arg.Any<CancellationToken>())
+                   .Returns(new LibraryVersionRecord
+                                {
+                                    Id = "a/1.0", LibraryId = "a", Version = "1.0",
+                                    ScrapedAt = DateTime.UtcNow,
+                                    PageCount = 1, ChunkCount = 1,
+                                    EmbeddingProviderId = "ollama",
+                                    EmbeddingModelName = "nomic-embed-text",
+                                    EmbeddingDimensions = 768
+                                });
+
+        var orphan = MakeJobRecord(id: "stale",
+                                    library: "a",
+                                    version: "1.0",
+                                    status: ScrapeJobStatus.Running,
+                                    createdAt: DateTime.UtcNow - TimeSpan.FromDays(1),
+                                    lastProgressAt: DateTime.UtcNow - TimeSpan.FromDays(1));
+        jobRepo.ListRecentAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
+               .Returns(Array.Empty<ScrapeJobRecord>());
+        jobRepo.ListRunningJobsAsync(Arg.Any<CancellationToken>())
+               .Returns(new[] { orphan });
+
+        var json = await HealthTools.GetDashboardIndex(factory, profile: null,
+                                                       ct: TestContext.Current.CancellationToken);
+
+        Assert.Contains("\"tool\": \"cancel_scrape\"", json);
+    }
+
+    private static ScrapeJobRecord MakeJobRecord(string id,
+                                                  string library,
+                                                  string version,
+                                                  ScrapeJobStatus status,
+                                                  DateTime createdAt,
+                                                  DateTime? lastProgressAt) =>
+        new()
+            {
+                Id = id,
+                Job = new ScrapeJob
+                          {
+                              RootUrl = "https://example.com",
+                              LibraryHint = library,
+                              LibraryId = library,
+                              Version = version,
+                              AllowedUrlPatterns = Array.Empty<string>()
+                          },
+                Status = status,
+                CreatedAt = createdAt,
+                LastProgressAt = lastProgressAt
+            };
+
+    private static (RepositoryFactory factory,
+                    ILibraryRepository libraryRepo,
+                    IChunkRepository chunkRepo,
+                    IScrapeJobRepository jobRepo) MakeFactory()
     {
         var factory = Substitute.For<RepositoryFactory>(new object?[] { null });
         var libraryRepo = Substitute.For<ILibraryRepository>();
         var chunkRepo = Substitute.For<IChunkRepository>();
+        var jobRepo = Substitute.For<IScrapeJobRepository>();
         factory.GetLibraryRepository(Arg.Any<string?>()).Returns(libraryRepo);
         factory.GetChunkRepository(Arg.Any<string?>()).Returns(chunkRepo);
-        return (factory, libraryRepo, chunkRepo);
+        factory.GetScrapeJobRepository(Arg.Any<string?>()).Returns(jobRepo);
+        jobRepo.ListRecentAsync(Arg.Any<int>(), Arg.Any<CancellationToken>())
+               .Returns(Array.Empty<ScrapeJobRecord>());
+        jobRepo.ListRunningJobsAsync(Arg.Any<CancellationToken>())
+               .Returns(Array.Empty<ScrapeJobRecord>());
+        return (factory, libraryRepo, chunkRepo, jobRepo);
     }
 }

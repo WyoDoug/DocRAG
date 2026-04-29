@@ -150,8 +150,8 @@ public sealed class ScrapeJobFactoryTests
     private const string TestLibraryId = "example-lib";
     private const string TestVersion = "3.1.0";
     private const int DefaultMaxPages = 0;
-    private const int DefaultFetchDelayMs = 500;
+    private const int DefaultFetchDelayMs = 0;
     private const int DefaultInScopeDepth = 10;
-    private const int DefaultSameHostDepth = 5;
+    private const int DefaultSameHostDepth = 2;
     private const int DefaultOffSiteDepth = 1;
 }

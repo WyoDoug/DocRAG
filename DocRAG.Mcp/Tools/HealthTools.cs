@@ -119,6 +119,7 @@ public static class HealthTools
     };
 
     [McpServerTool(Name = "get_dashboard_index")]
+    [McpMeta("anthropic/alwaysLoad", true)]
     [Description("Start here in any fresh or disoriented session. Returns a single-call " +
                  "DocRAG status overview: library/version counts, recent scrape jobs (with " +
                  "Stale flags for Running jobs that haven't progressed in 4+ hours), and up to " +
@@ -139,6 +140,8 @@ public static class HealthTools
 
         var libraries = await libraryRepo.GetAllLibrariesAsync(ct);
         var recentJobs = await jobRepo.ListRecentAsync(limit: RecentJobsLimit, ct);
+        var runningJobs = await jobRepo.ListRunningJobsAsync(ct);
+        var mergedJobs = MergeRecentAndRunning(recentJobs, runningJobs);
 
         var suspectList = new List<object>();
         int versionCount = 0;
@@ -153,29 +156,26 @@ public static class HealthTools
             }
         }
 
-        var staleThreshold = TimeSpan.FromHours(StaleRunningThresholdHours);
-        var recentJobsProjection = recentJobs.Select(j => new
+        var staleCutoff = DateTime.UtcNow - ScrapeJobThresholds.StaleRunning;
+        var recentJobsProjection = mergedJobs.Select(j => new
                                                               {
                                                                   j.Id,
                                                                   j.Status,
+                                                                  PipelineState = j.Status.ToString(),
                                                                   Library = j.Job.LibraryId,
                                                                   j.Job.Version,
-                                                                  stale = j.Status == ScrapeJobStatus.Running
-                                                                          && j.LastProgressAt.HasValue
-                                                                          && DateTime.UtcNow - j.LastProgressAt.Value > staleThreshold,
+                                                                  Stale = ScrapeJobThresholds.IsStaleRunning(j, staleCutoff),
                                                                   j.LastProgressAt
                                                               })
                                               .ToList();
 
-        int staleRunning = recentJobs.Count(j => j.Status == ScrapeJobStatus.Running
-                                                  && j.LastProgressAt.HasValue
-                                                  && DateTime.UtcNow - j.LastProgressAt.Value > staleThreshold);
+        int staleRunning = mergedJobs.Count(j => ScrapeJobThresholds.IsStaleRunning(j, staleCutoff));
 
         object suggested = (libraries.Count == 0, suspectList.Count > 0, staleRunning > 0) switch
         {
             (true, _, _) => new { tool = (string?) SuggestToolScrape, message = EmptyDbSuggestion },
             (_, true, _) => new { tool = (string?) SuggestToolCorrectUrl, message = $"{suspectList.Count} suspect libraries — review and correct URLs." },
-            (_, _, true) => new { tool = (string?) SuggestToolCancelScrape, message = $"{staleRunning} jobs have not progressed in over {StaleRunningThresholdHours}h." },
+            (_, _, true) => new { tool = (string?) SuggestToolCancelScrape, message = $"{staleRunning} jobs have not progressed in over {ScrapeJobThresholds.StaleRunning.TotalHours}h." },
             _ => new { tool = (string?) null, message = SuggestMessageHealthy }
         };
 
@@ -191,6 +191,20 @@ public static class HealthTools
         return JsonSerializer.Serialize(response, smJsonOptions);
     }
 
+    private static IReadOnlyList<ScrapeJobRecord> MergeRecentAndRunning(IReadOnlyList<ScrapeJobRecord> recent,
+                                                                        IReadOnlyList<ScrapeJobRecord> running)
+    {
+        var byId = new Dictionary<string, ScrapeJobRecord>(StringComparer.Ordinal);
+        foreach (var job in recent)
+            byId[job.Id] = job;
+        foreach (var job in running)
+            byId.TryAdd(job.Id, job);
+        var result = byId.Values
+                         .OrderByDescending(j => j.CreatedAt)
+                         .ToList();
+        return result;
+    }
+
     private static readonly JsonSerializerOptions smJsonOptions = new() { WriteIndented = true };
 
     private const int MaxHostnamesReturned = 20;
@@ -202,7 +216,6 @@ public static class HealthTools
     private const string BoundaryHintMayHelpMessage = "rechunk_library may help";
     private const int RecentJobsLimit = 5;
     private const int SuspectListCap = 20;
-    private const int StaleRunningThresholdHours = 4;
     private const string EmptyDbSuggestion = "Database is empty. Ingest a library to begin.";
     private const string SuggestToolScrape = "scrape_docs";
     private const string SuggestToolCorrectUrl = "submit_url_correction";

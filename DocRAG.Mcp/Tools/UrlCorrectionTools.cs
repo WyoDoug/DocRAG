@@ -61,22 +61,33 @@ public static class UrlCorrectionTools
         var profileRepo = repositoryFactory.GetLibraryProfileRepository(profile);
         var indexRepo = repositoryFactory.GetLibraryIndexRepository(profile);
         var bm25Repo = repositoryFactory.GetBm25ShardRepository(profile);
+        var scrapeJobRepo = repositoryFactory.GetScrapeJobRepository(profile);
 
         string result;
         if (dryRun)
         {
             var chunks = await chunkRepo.GetChunkCountAsync(library, version, ct);
             var pages = await pageRepo.GetPageCountAsync(library, version, ct);
+            var activeJobs = await scrapeJobRepo.ListActiveJobsAsync(library, version, ct);
             var preview = new
                               {
                                   DryRun = true,
                                   WouldDelete = new { Chunks = chunks, Pages = pages, Profiles = 1, Indexes = 1, Bm25Shards = 1 },
+                                  WouldCancel = activeJobs.Select(j => new { j.Id, j.Status, PipelineState = j.Status.ToString() }).ToList(),
                                   WouldQueue = new { RootUrl = newUrl, Library = library, Version = version }
                               };
             result = JsonSerializer.Serialize(preview, smJsonOptions);
         }
         else
         {
+            var activeJobs = await scrapeJobRepo.ListActiveJobsAsync(library, version, ct);
+            var cancelledIds = new List<string>();
+            foreach (var existing in activeJobs)
+            {
+                await runner.CancelAsync(existing.Id, ct);
+                cancelledIds.Add(existing.Id);
+            }
+
             var chunks = await chunkRepo.DeleteChunksAsync(library, version, ct);
             var pages = await pageRepo.DeleteAsync(library, version, ct);
             await profileRepo.DeleteAsync(library, version, ct);
@@ -89,7 +100,7 @@ public static class UrlCorrectionTools
                                                      version,
                                                      hint: CorrectedHint,
                                                      maxPages: DefaultMaxPages,
-                                                     fetchDelayMs: DefaultFetchDelayMs,
+                                                     fetchDelayMs: ScrapeJob.DefaultFetchDelayMs,
                                                      forceClean: true);
             var jobId = await runner.QueueAsync(job, profile, ct);
 
@@ -97,6 +108,7 @@ public static class UrlCorrectionTools
                                {
                                    DryRun = false,
                                    Cleared = new { Chunks = chunks, Pages = pages },
+                                   CancelledJobs = cancelledIds,
                                    JobId = jobId,
                                    Status = StatusQueued,
                                    Message = $"Suspect chunks dropped, scrape re-queued at {newUrl}. Poll get_scrape_status with jobId='{jobId}'."
@@ -112,5 +124,4 @@ public static class UrlCorrectionTools
     private const string CorrectedHint = "(corrected URL)";
     private const string StatusQueued = "Queued";
     private const int DefaultMaxPages = 0;
-    private const int DefaultFetchDelayMs = 500;
 }

@@ -27,6 +27,7 @@ public static class LibraryTools
     private const string KindParameter = "parameter";
 
     [McpServerTool(Name = "list_libraries")]
+    [McpMeta("anthropic/alwaysLoad", true)]
     [Description("List all available documentation libraries with their current version and all ingested versions.")]
     public static async Task<string> ListLibraries(RepositoryFactory repositoryFactory,
                                                    [Description("Optional database profile name (use list_profiles to discover)"
@@ -58,6 +59,7 @@ public static class LibraryTools
     private const string EmptyDatabaseHint = "Database is empty. Call get_dashboard_index for orientation, or use index_project_dependencies(path=...) / scrape_docs(url=..., libraryId=..., version=...) to ingest.";
 
     [McpServerTool(Name = "list_symbols")]
+    [McpMeta("anthropic/alwaysLoad", true)]
     [Description("List documented symbols for a library, optionally filtered by kind. " +
                  "kind=class|enum|function|parameter, or omit for all kinds. " +
                  "Returns [{name, kind}] so callers can render heterogeneous results."

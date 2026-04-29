@@ -31,6 +31,7 @@ namespace DocRAG.Mcp.Tools;
 public static class SearchTools
 {
     [McpServerTool(Name = "search_docs")]
+    [McpMeta("anthropic/alwaysLoad", true)]
     [Description("Search documentation using natural language. Works across all ingested libraries " +
                  "or filtered to a specific one. Filter by category to narrow results: " +
                  "Overview (concepts, architecture, getting started), " +
@@ -94,6 +95,7 @@ public static class SearchTools
     }
 
     [McpServerTool(Name = "get_class_reference")]
+    [McpMeta("anthropic/alwaysLoad", true)]
     [Description("Look up API reference for a specific class or type. " +
                  "If library is omitted, searches across ALL libraries. " +
                  "Tries exact match first, then fuzzy match."
@@ -140,6 +142,7 @@ public static class SearchTools
     }
 
     [McpServerTool(Name = "get_library_overview")]
+    [McpMeta("anthropic/alwaysLoad", true)]
     [Description("Get an overview of what a library is and how to get started. " +
                  "Returns Overview-category documentation chunks — actual library content. " +
                  "For diagnostic information (chunk counts, language mix, boundary issues, suspect markers), " +
