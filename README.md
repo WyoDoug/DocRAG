@@ -18,7 +18,6 @@ AI coding assistants are limited by their training cutoff and context window. Wh
 
 ```
 Documentation Sites          SaddleRAG Pipeline                    AI Assistants
-==================          ===============                    ==============
 
 docs.example.com  --+
                     |      +-------------+
