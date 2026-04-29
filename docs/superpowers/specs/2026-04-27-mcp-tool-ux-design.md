@@ -2,13 +2,13 @@
 
 **Date:** 2026-04-27
 **Status:** Draft
-**Scope:** Make the DocRAG MCP tool surface usable by a fresh LLM consumer — fix cold-start dead ends, add visibility into library health, expose rename/delete/cancel, consolidate the two scrape tools, surface "this URL probably isn't docs" via the existing recon delegation pattern, and collapse redundant listing/resume tools.
+**Scope:** Make the SaddleRAG MCP tool surface usable by a fresh LLM consumer — fix cold-start dead ends, add visibility into library health, expose rename/delete/cancel, consolidate the two scrape tools, surface "this URL probably isn't docs" via the existing recon delegation pattern, and collapse redundant listing/resume tools.
 
 ---
 
 ## Problem
 
-A second-pass LLM review of the current tool surface (after using DocRAG against a populated database, then mentally walking through a fresh-database flow) flagged a set of friction points:
+A second-pass LLM review of the current tool surface (after using SaddleRAG against a populated database, then mentally walking through a fresh-database flow) flagged a set of friction points:
 
 1. **No cold-start orientation.** `list_libraries` returns `[]` on an empty DB and there is no documented "start here" tool. The LLM has to guess between `start_ingest`, `scrape_docs`, `index_project_dependencies`, etc.
 2. **No way to detect a misindexed library.** A library can be 100% the wrong content (e.g., `mongodb.driver` indexed as Go/Ruby docs because `PackageProjectUrl` resolved to a multi-driver landing page) and the only way to discover it is to read chunks one-by-one.

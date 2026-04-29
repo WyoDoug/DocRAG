@@ -17,7 +17,7 @@
 Replace the single `CurrentPhase` string with per-stage counters so each pipeline stage can report progress independently.
 
 **Files:**
-- Modify: `DocRAG.Core/Models/ScrapeJobRecord.cs`
+- Modify: `SaddleRAG.Core/Models/ScrapeJobRecord.cs`
 
 - [ ] **Step 1: Replace CurrentPhase with PipelineState and add new counter fields**
 
@@ -27,9 +27,9 @@ Replace the entire content of `ScrapeJobRecord.cs` with:
 // ScrapeJobRecord.cs
 // Copyright (c) Jackalope Technologies, Inc. All rights reserved.
 
-using DocRAG.Core.Enums;
+using SaddleRAG.Core.Enums;
 
-namespace DocRAG.Core.Models;
+namespace SaddleRAG.Core.Models;
 
 /// <summary>
 ///     Tracks the lifecycle of a single scrape job for status polling.
@@ -125,7 +125,7 @@ public class ScrapeJobRecord
 
 - [ ] **Step 2: Build to verify compilation**
 
-Run: `dotnet build E:\Projects\RAG\DocRAG.Core\DocRAG.Core.csproj`
+Run: `dotnet build E:\Projects\RAG\SaddleRAG.Core\SaddleRAG.Core.csproj`
 Expected: Build errors in files that reference `CurrentPhase` — that's expected, we'll fix them in later tasks.
 
 - [ ] **Step 3: Commit**
@@ -139,8 +139,8 @@ Commit message: `refactor: replace ScrapeJobRecord.CurrentPhase with per-stage s
 The streaming embed stage writes chunks with embeddings in one pass (no delete+reinsert). For resume support, it must upsert rather than insert to handle duplicate chunk IDs.
 
 **Files:**
-- Modify: `DocRAG.Core/Interfaces/IChunkRepository.cs`
-- Modify: `DocRAG.Database/Repositories/ChunkRepository.cs`
+- Modify: `SaddleRAG.Core/Interfaces/IChunkRepository.cs`
+- Modify: `SaddleRAG.Database/Repositories/ChunkRepository.cs`
 
 - [ ] **Step 1: Add UpsertChunksAsync to IChunkRepository**
 
@@ -179,7 +179,7 @@ Add this method to `ChunkRepository`, after the existing `InsertChunksAsync` met
 
 - [ ] **Step 3: Build to verify compilation**
 
-Run: `dotnet build E:\Projects\RAG\DocRAG.Database\DocRAG.Database.csproj`
+Run: `dotnet build E:\Projects\RAG\SaddleRAG.Database\SaddleRAG.Database.csproj`
 Expected: PASS
 
 - [ ] **Step 4: Commit**
@@ -193,9 +193,9 @@ Commit message: `feat: add UpsertChunksAsync to IChunkRepository for streaming r
 Raise limits now that streaming removes the memory pressure.
 
 **Files:**
-- Modify: `DocRAG.Ingestion/Scanning/ScrapeJobFactory.cs`
-- Modify: `DocRAG.Mcp/Tools/ScrapeDocsTools.cs`
-- Modify: `DocRAG.Tests/Scanning/ScrapeJobFactoryTests.cs`
+- Modify: `SaddleRAG.Ingestion/Scanning/ScrapeJobFactory.cs`
+- Modify: `SaddleRAG.Mcp/Tools/ScrapeDocsTools.cs`
+- Modify: `SaddleRAG.Tests/Scanning/ScrapeJobFactoryTests.cs`
 
 - [ ] **Step 1: Update ScrapeJobFactory.DefaultMaxPages from 500 to 2500**
 
@@ -241,7 +241,7 @@ to:
 
 - [ ] **Step 4: Run tests to verify**
 
-Run: `dotnet test E:\Projects\RAG\DocRAG.Tests\DocRAG.Tests.csproj --filter ScrapeJobFactoryTests`
+Run: `dotnet test E:\Projects\RAG\SaddleRAG.Tests\SaddleRAG.Tests.csproj --filter ScrapeJobFactoryTests`
 Expected: All 13 tests pass.
 
 - [ ] **Step 5: Commit**
@@ -255,22 +255,22 @@ Commit message: `feat: raise default MaxPages from 500 to 2500 for streaming pip
 LLM is the sole classification path.
 
 **Files:**
-- Delete: `DocRAG.Ingestion/Classification/HeuristicClassifier.cs`
-- Delete: `DocRAG.Tests/Classification/HeuristicClassifierTests.cs`
-- Modify: `DocRAG.Mcp/Program.cs`
-- Modify: `DocRAG.Cli/Program.cs`
+- Delete: `SaddleRAG.Ingestion/Classification/HeuristicClassifier.cs`
+- Delete: `SaddleRAG.Tests/Classification/HeuristicClassifierTests.cs`
+- Modify: `SaddleRAG.Mcp/Program.cs`
+- Modify: `SaddleRAG.Cli/Program.cs`
 
 - [ ] **Step 1: Delete HeuristicClassifier.cs**
 
-Run: `rm E:\Projects\RAG\DocRAG.Ingestion\Classification\HeuristicClassifier.cs`
+Run: `rm E:\Projects\RAG\SaddleRAG.Ingestion\Classification\HeuristicClassifier.cs`
 
 - [ ] **Step 2: Delete HeuristicClassifierTests.cs**
 
-Run: `rm E:\Projects\RAG\DocRAG.Tests\Classification\HeuristicClassifierTests.cs`
+Run: `rm E:\Projects\RAG\SaddleRAG.Tests\Classification\HeuristicClassifierTests.cs`
 
 - [ ] **Step 3: Remove HeuristicClassifier registration from MCP Program.cs**
 
-In `DocRAG.Mcp/Program.cs`, delete this line:
+In `SaddleRAG.Mcp/Program.cs`, delete this line:
 
 ```csharp
 builder.Services.AddSingleton<HeuristicClassifier>();
@@ -279,30 +279,30 @@ builder.Services.AddSingleton<HeuristicClassifier>();
 And remove the using if it becomes unused:
 
 ```csharp
-using DocRAG.Ingestion.Classification;
+using SaddleRAG.Ingestion.Classification;
 ```
 
 Replace it with just:
 
 ```csharp
-using DocRAG.Ingestion.Classification;
+using SaddleRAG.Ingestion.Classification;
 ```
 
 (Keep it — LlmClassifier still needs it.)
 
 - [ ] **Step 4: Remove HeuristicClassifier registration from CLI Program.cs**
 
-In `DocRAG.Cli/Program.cs`, delete this line:
+In `SaddleRAG.Cli/Program.cs`, delete this line:
 
 ```csharp
 services.AddSingleton<HeuristicClassifier>();
 ```
 
-And remove the `using DocRAG.Ingestion.Classification;` import if only HeuristicClassifier used it. (Keep it if LlmClassifier is also registered here.)
+And remove the `using SaddleRAG.Ingestion.Classification;` import if only HeuristicClassifier used it. (Keep it if LlmClassifier is also registered here.)
 
 - [ ] **Step 5: Build the full solution to find any remaining references**
 
-Run: `dotnet build E:\Projects\RAG\DocRAG.sln`
+Run: `dotnet build E:\Projects\RAG\SaddleRAG.sln`
 Expected: Build errors in `IngestionOrchestrator.cs` (references `HeuristicClassifier` and `CurrentPhase`) — those are expected and will be fixed in Task 5.
 
 - [ ] **Step 6: Commit**
@@ -316,7 +316,7 @@ Commit message: `refactor: remove HeuristicClassifier in favor of LLM-only class
 Add `ChannelWriter<PageRecord>` output parameter and `IReadOnlySet<string>? resumeUrls` for seeding the visited set. Add `Action<int>? onQueued` callback for PagesQueued reporting.
 
 **Files:**
-- Modify: `DocRAG.Ingestion/Crawling/PageCrawler.cs`
+- Modify: `SaddleRAG.Ingestion/Crawling/PageCrawler.cs`
 
 - [ ] **Step 1: Add using for System.Threading.Channels**
 
@@ -408,7 +408,7 @@ At the end of `CrawlAsync`, after the `mLogger.LogInformation("Crawl complete...
 
 - [ ] **Step 7: Build to verify**
 
-Run: `dotnet build E:\Projects\RAG\DocRAG.Ingestion\DocRAG.Ingestion.csproj`
+Run: `dotnet build E:\Projects\RAG\SaddleRAG.Ingestion\SaddleRAG.Ingestion.csproj`
 Expected: Build errors in `IngestionOrchestrator.cs` due to changed `CrawlAsync` signature — expected, fixed in Task 6.
 
 - [ ] **Step 8: Commit**
@@ -422,7 +422,7 @@ Commit message: `feat: add channel output, resume support, and queue reporting t
 This is the core task. Replace the sequential five-phase pipeline with channel-connected stages.
 
 **Files:**
-- Modify: `DocRAG.Ingestion/IngestionOrchestrator.cs`
+- Modify: `SaddleRAG.Ingestion/IngestionOrchestrator.cs`
 
 - [ ] **Step 1: Replace the entire IngestionOrchestrator.cs**
 
@@ -431,15 +431,15 @@ This is the core task. Replace the sequential five-phase pipeline with channel-c
 // Copyright (c) Jackalope Technologies, Inc. All rights reserved.
 
 using System.Threading.Channels;
-using DocRAG.Core.Enums;
-using DocRAG.Core.Interfaces;
-using DocRAG.Core.Models;
-using DocRAG.Ingestion.Chunking;
-using DocRAG.Ingestion.Classification;
-using DocRAG.Ingestion.Crawling;
+using SaddleRAG.Core.Enums;
+using SaddleRAG.Core.Interfaces;
+using SaddleRAG.Core.Models;
+using SaddleRAG.Ingestion.Chunking;
+using SaddleRAG.Ingestion.Classification;
+using SaddleRAG.Ingestion.Crawling;
 using Microsoft.Extensions.Logging;
 
-namespace DocRAG.Ingestion;
+namespace SaddleRAG.Ingestion;
 
 /// <summary>
 ///     Orchestrates the streaming ingestion pipeline:
@@ -957,7 +957,7 @@ public class IngestionOrchestrator
 
 - [ ] **Step 2: Build to verify**
 
-Run: `dotnet build E:\Projects\RAG\DocRAG.Ingestion\DocRAG.Ingestion.csproj`
+Run: `dotnet build E:\Projects\RAG\SaddleRAG.Ingestion\SaddleRAG.Ingestion.csproj`
 Expected: PASS (or errors in ScrapeJobRunner/CLI/MCP that still reference old signatures — those are fixed in Tasks 7-8).
 
 - [ ] **Step 3: Commit**
@@ -971,7 +971,7 @@ Commit message: `feat: rewrite IngestionOrchestrator as channel-based streaming 
 The runner's progress callback signature changed: it now receives the full `ScrapeJobRecord` rather than four separate ints.
 
 **Files:**
-- Modify: `DocRAG.Ingestion/ScrapeJobRunner.cs`
+- Modify: `SaddleRAG.Ingestion/ScrapeJobRunner.cs`
 
 - [ ] **Step 1: Update RunJobAsync to use new IngestAsync signature**
 
@@ -1056,7 +1056,7 @@ with:
 
 - [ ] **Step 5: Build to verify**
 
-Run: `dotnet build E:\Projects\RAG\DocRAG.Ingestion\DocRAG.Ingestion.csproj`
+Run: `dotnet build E:\Projects\RAG\SaddleRAG.Ingestion\SaddleRAG.Ingestion.csproj`
 Expected: PASS
 
 - [ ] **Step 6: Commit**
@@ -1070,8 +1070,8 @@ Commit message: `refactor: update ScrapeJobRunner for streaming pipeline progres
 Update `GetScrapeStatus` to report new counters, `ListScrapeJobs` to use `PipelineState`, and add the `continue_scrape` tool.
 
 **Files:**
-- Modify: `DocRAG.Mcp/Tools/IngestionTools.cs`
-- Modify: `DocRAG.Mcp/Tools/ScrapeDocsTools.cs`
+- Modify: `SaddleRAG.Mcp/Tools/IngestionTools.cs`
+- Modify: `SaddleRAG.Mcp/Tools/ScrapeDocsTools.cs`
 
 - [ ] **Step 1: Update GetScrapeStatus to include new fields**
 
@@ -1202,7 +1202,7 @@ Add this method to `ScrapeDocsTools`, after the `ScrapeDocs` method:
 
 - [ ] **Step 4: Build the full solution**
 
-Run: `dotnet build E:\Projects\RAG\DocRAG.sln`
+Run: `dotnet build E:\Projects\RAG\SaddleRAG.sln`
 Expected: May have errors in CLI Program.cs — fixed in Task 9.
 
 - [ ] **Step 5: Commit**
@@ -1216,17 +1216,17 @@ Commit message: `feat: update MCP tools for streaming progress and add continue_
 Remove HeuristicClassifier reference (if not already done), fix any remaining references to old `CurrentPhase` or `IngestAsync` signature.
 
 **Files:**
-- Modify: `DocRAG.Cli/Program.cs`
+- Modify: `SaddleRAG.Cli/Program.cs`
 
 - [ ] **Step 1: Search for remaining CurrentPhase references in CLI**
 
-Run: `grep -n "CurrentPhase" E:\Projects\RAG\DocRAG.Cli\Program.cs`
+Run: `grep -n "CurrentPhase" E:\Projects\RAG\SaddleRAG.Cli\Program.cs`
 
 Fix any occurrences by replacing `CurrentPhase` with `PipelineState`.
 
 - [ ] **Step 2: Search for remaining onProgress callback references**
 
-Run: `grep -n "onProgress\|Action<string, int, int, int>" E:\Projects\RAG\DocRAG.Cli\Program.cs`
+Run: `grep -n "onProgress\|Action<string, int, int, int>" E:\Projects\RAG\SaddleRAG.Cli\Program.cs`
 
 The CLI's `ingest` command likely calls `IngestAsync` directly. Update any progress callback to match the new signature `Action<ScrapeJobRecord>`.
 
@@ -1248,7 +1248,7 @@ Console.WriteLine();
 
 - [ ] **Step 3: Build the full solution**
 
-Run: `dotnet build E:\Projects\RAG\DocRAG.sln`
+Run: `dotnet build E:\Projects\RAG\SaddleRAG.sln`
 Expected: PASS — all projects compile.
 
 - [ ] **Step 4: Commit**
@@ -1266,7 +1266,7 @@ Run the full test suite to catch any breakage from the refactor.
 
 - [ ] **Step 1: Run all tests**
 
-Run: `dotnet test E:\Projects\RAG\DocRAG.Tests\DocRAG.Tests.csproj`
+Run: `dotnet test E:\Projects\RAG\SaddleRAG.Tests\SaddleRAG.Tests.csproj`
 Expected: All tests pass. If any fail due to references to `HeuristicClassifier` or `CurrentPhase`, fix them.
 
 - [ ] **Step 2: Commit any test fixes**
@@ -1281,12 +1281,12 @@ Ensure the entire solution builds and all tests pass.
 
 - [ ] **Step 1: Clean build the full solution**
 
-Run: `dotnet build E:\Projects\RAG\DocRAG.sln --no-incremental`
+Run: `dotnet build E:\Projects\RAG\SaddleRAG.sln --no-incremental`
 Expected: PASS, zero warnings related to our changes.
 
 - [ ] **Step 2: Run all tests**
 
-Run: `dotnet test E:\Projects\RAG\DocRAG.Tests\DocRAG.Tests.csproj`
+Run: `dotnet test E:\Projects\RAG\SaddleRAG.Tests\SaddleRAG.Tests.csproj`
 Expected: All tests pass.
 
 - [ ] **Step 3: Commit if any final fixes were needed**

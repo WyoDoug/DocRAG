@@ -11,8 +11,8 @@
 - `ScrapeJob` gains a `SourceKind` property, defaulting to `Web` for backward compatibility.
 - `PageCrawler` implements `ISourceCrawler` (`Kind => SourceKind.Web`). Its existing internal delegation to `GitHubRepoScraper` for discovered GitHub links stays as-is — the abstraction is at the entry point, not internal collaboration.
 - `IngestionOrchestrator` constructor changes from concrete `PageCrawler` to `ISourceCrawlerRegistry`, dispatching in `RunCrawlStageAsync` based on `job.SourceKind`.
-- DI registration in `DocRAG.Mcp/Program.cs` adds `PageCrawler` as `ISourceCrawler` and registers the registry.
-- `PageCrawler.DryRunAsync` stays a concrete method on `PageCrawler` — it's web-specific and called directly from `DocRAG.Mcp/Tools/IngestionTools.cs`. Not on the interface.
+- DI registration in `SaddleRAG.Mcp/Program.cs` adds `PageCrawler` as `ISourceCrawler` and registers the registry.
+- `PageCrawler.DryRunAsync` stays a concrete method on `PageCrawler` — it's web-specific and called directly from `SaddleRAG.Mcp/Tools/IngestionTools.cs`. Not on the interface.
 
 **Tech Stack:** C# .NET 10, `System.Threading.Channels`, xUnit v3, NSubstitute, MongoDB, Ollama, Playwright.
 
@@ -37,24 +37,24 @@
 ## File Plan
 
 **Create:**
-- `DocRAG.Core/Enums/SourceKind.cs` — enum with all forward-looking source kinds.
-- `DocRAG.Core/Interfaces/ISourceCrawler.cs` — entry-point crawler abstraction.
-- `DocRAG.Core/Interfaces/ISourceCrawlerRegistry.cs` — lookup interface.
-- `DocRAG.Core/Interfaces/IPageDryRunner.cs` — dry-run abstraction extracted from `PageCrawler`.
-- `DocRAG.Ingestion/Crawling/SourceCrawlerRegistry.cs` — concrete registry.
-- `DocRAG.Tests/Crawling/SourceCrawlerRegistryTests.cs` — unit tests for the registry.
-- `DocRAG.Tests/Crawling/PageCrawlerKindTests.cs` — unit test that `PageCrawler.Kind == SourceKind.Web`.
-- `DocRAG.Tests/Crawling/PageCrawlerDryRunnerTests.cs` — unit test that `PageCrawler` implements `IPageDryRunner`.
-- `DocRAG.Tests/Crawling/GitHubRepoScraperKindTests.cs` — unit tests that `GitHubRepoScraper` implements `ISourceCrawler`, has `Kind == SourceKind.GitHub`, and `CrawlAsync` throws + completes channel on non-GitHub URLs.
-- `DocRAG.Tests/Ingestion/IngestionOrchestratorDispatchTests.cs` — unit tests that orchestrator dispatches via registry.
+- `SaddleRAG.Core/Enums/SourceKind.cs` — enum with all forward-looking source kinds.
+- `SaddleRAG.Core/Interfaces/ISourceCrawler.cs` — entry-point crawler abstraction.
+- `SaddleRAG.Core/Interfaces/ISourceCrawlerRegistry.cs` — lookup interface.
+- `SaddleRAG.Core/Interfaces/IPageDryRunner.cs` — dry-run abstraction extracted from `PageCrawler`.
+- `SaddleRAG.Ingestion/Crawling/SourceCrawlerRegistry.cs` — concrete registry.
+- `SaddleRAG.Tests/Crawling/SourceCrawlerRegistryTests.cs` — unit tests for the registry.
+- `SaddleRAG.Tests/Crawling/PageCrawlerKindTests.cs` — unit test that `PageCrawler.Kind == SourceKind.Web`.
+- `SaddleRAG.Tests/Crawling/PageCrawlerDryRunnerTests.cs` — unit test that `PageCrawler` implements `IPageDryRunner`.
+- `SaddleRAG.Tests/Crawling/GitHubRepoScraperKindTests.cs` — unit tests that `GitHubRepoScraper` implements `ISourceCrawler`, has `Kind == SourceKind.GitHub`, and `CrawlAsync` throws + completes channel on non-GitHub URLs.
+- `SaddleRAG.Tests/Ingestion/IngestionOrchestratorDispatchTests.cs` — unit tests that orchestrator dispatches via registry.
 
 **Modify:**
-- `DocRAG.Core/Models/ScrapeJob.cs` — add `SourceKind` property defaulting to `Web`.
-- `DocRAG.Ingestion/Crawling/PageCrawler.cs` — implement `ISourceCrawler` and `IPageDryRunner`, add `Kind` property.
-- `DocRAG.Ingestion/Crawling/GitHubRepoScraper.cs` — implement `ISourceCrawler`, add `Kind` property and `CrawlAsync` wrapper that parses `job.RootUrl` for owner/repo and completes the channel.
-- `DocRAG.Ingestion/IngestionOrchestrator.cs` — replace `PageCrawler crawler` ctor parameter with `ISourceCrawlerRegistry crawlers`; update `RunCrawlStageAsync` to look up crawler by `job.SourceKind`. Drop unused `using DocRAG.Ingestion.Crawling;`.
-- `DocRAG.Mcp/Tools/IngestionTools.cs` — change `DryRunScrape` parameter from `PageCrawler crawler` to `IPageDryRunner dryRunner`. Drop unused `using DocRAG.Ingestion.Crawling;`.
-- `DocRAG.Mcp/Program.cs` — register `PageCrawler` as both `ISourceCrawler` and `IPageDryRunner`; register `GitHubRepoScraper` as `ISourceCrawler`; register `SourceCrawlerRegistry` as `ISourceCrawlerRegistry`.
+- `SaddleRAG.Core/Models/ScrapeJob.cs` — add `SourceKind` property defaulting to `Web`.
+- `SaddleRAG.Ingestion/Crawling/PageCrawler.cs` — implement `ISourceCrawler` and `IPageDryRunner`, add `Kind` property.
+- `SaddleRAG.Ingestion/Crawling/GitHubRepoScraper.cs` — implement `ISourceCrawler`, add `Kind` property and `CrawlAsync` wrapper that parses `job.RootUrl` for owner/repo and completes the channel.
+- `SaddleRAG.Ingestion/IngestionOrchestrator.cs` — replace `PageCrawler crawler` ctor parameter with `ISourceCrawlerRegistry crawlers`; update `RunCrawlStageAsync` to look up crawler by `job.SourceKind`. Drop unused `using SaddleRAG.Ingestion.Crawling;`.
+- `SaddleRAG.Mcp/Tools/IngestionTools.cs` — change `DryRunScrape` parameter from `PageCrawler crawler` to `IPageDryRunner dryRunner`. Drop unused `using SaddleRAG.Ingestion.Crawling;`.
+- `SaddleRAG.Mcp/Program.cs` — register `PageCrawler` as both `ISourceCrawler` and `IPageDryRunner`; register `GitHubRepoScraper` as `ISourceCrawler`; register `SourceCrawlerRegistry` as `ISourceCrawlerRegistry`.
 
 **Untouched (intentionally):**
 - `ScrapeJobRunner` — already takes `IngestionOrchestrator`; transitive change only.
@@ -65,18 +65,18 @@
 ### Task 1: Add `SourceKind` enum
 
 **Files:**
-- Create: `DocRAG.Core/Enums/SourceKind.cs`
+- Create: `SaddleRAG.Core/Enums/SourceKind.cs`
 
 - [ ] **Step 1: Create the enum file**
 
-Write `DocRAG.Core/Enums/SourceKind.cs` with this exact content:
+Write `SaddleRAG.Core/Enums/SourceKind.cs` with this exact content:
 
 ```csharp
 // // SourceKind.cs
 // // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
 // // Use subject to the MIT License.
 
-namespace DocRAG.Core.Enums;
+namespace SaddleRAG.Core.Enums;
 
 /// <summary>
 ///     Identifies the kind of source a scrape job pulls from.
@@ -129,14 +129,14 @@ public enum SourceKind
 
 - [ ] **Step 2: Build to verify the enum compiles**
 
-Run: `dotnet build E:/GitHub/DocRAG/DocRAG.Core/DocRAG.Core.csproj`
+Run: `dotnet build E:/GitHub/SaddleRAG/SaddleRAG.Core/SaddleRAG.Core.csproj`
 Expected: Build succeeded, 0 errors, 0 warnings.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git -C E:/GitHub/DocRAG add DocRAG.Core/Enums/SourceKind.cs
-git -C E:/GitHub/DocRAG commit -F .git-commit-msg.txt
+git -C E:/GitHub/SaddleRAG add SaddleRAG.Core/Enums/SourceKind.cs
+git -C E:/GitHub/SaddleRAG commit -F .git-commit-msg.txt
 ```
 
 Where `.git-commit-msg.txt` contains:
@@ -144,7 +144,7 @@ Where `.git-commit-msg.txt` contains:
 ```
 Add SourceKind enum for source-type dispatch
 
-Forward-looking enum naming the source types DocRAG products will dispatch
+Forward-looking enum naming the source types SaddleRAG products will dispatch
 on (Web, GitHub, FileSystem, Video, PubMed, Arxiv, CadCompanion). Web
 remains the only kind with a registered crawler in this commit; the rest
 are placeholders for upcoming products.
@@ -155,11 +155,11 @@ are placeholders for upcoming products.
 ### Task 2: Add `ISourceCrawler` interface
 
 **Files:**
-- Create: `DocRAG.Core/Interfaces/ISourceCrawler.cs`
+- Create: `SaddleRAG.Core/Interfaces/ISourceCrawler.cs`
 
 - [ ] **Step 1: Create the interface file**
 
-Write `DocRAG.Core/Interfaces/ISourceCrawler.cs` with this exact content:
+Write `SaddleRAG.Core/Interfaces/ISourceCrawler.cs` with this exact content:
 
 ```csharp
 // // ISourceCrawler.cs
@@ -169,12 +169,12 @@ Write `DocRAG.Core/Interfaces/ISourceCrawler.cs` with this exact content:
 #region Usings
 
 using System.Threading.Channels;
-using DocRAG.Core.Enums;
-using DocRAG.Core.Models;
+using SaddleRAG.Core.Enums;
+using SaddleRAG.Core.Models;
 
 #endregion
 
-namespace DocRAG.Core.Interfaces;
+namespace SaddleRAG.Core.Interfaces;
 
 /// <summary>
 ///     Entry-point abstraction for the crawl stage of the ingestion pipeline.
@@ -212,14 +212,14 @@ public interface ISourceCrawler
 
 - [ ] **Step 2: Build to verify**
 
-Run: `dotnet build E:/GitHub/DocRAG/DocRAG.Core/DocRAG.Core.csproj`
+Run: `dotnet build E:/GitHub/SaddleRAG/SaddleRAG.Core/SaddleRAG.Core.csproj`
 Expected: Build succeeded, 0 errors, 0 warnings.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git -C E:/GitHub/DocRAG add DocRAG.Core/Interfaces/ISourceCrawler.cs
-git -C E:/GitHub/DocRAG commit -F .git-commit-msg.txt
+git -C E:/GitHub/SaddleRAG add SaddleRAG.Core/Interfaces/ISourceCrawler.cs
+git -C E:/GitHub/SaddleRAG commit -F .git-commit-msg.txt
 ```
 
 Commit message:
@@ -239,11 +239,11 @@ the orchestrator.
 ### Task 3: Add `ISourceCrawlerRegistry` interface
 
 **Files:**
-- Create: `DocRAG.Core/Interfaces/ISourceCrawlerRegistry.cs`
+- Create: `SaddleRAG.Core/Interfaces/ISourceCrawlerRegistry.cs`
 
 - [ ] **Step 1: Create the interface file**
 
-Write `DocRAG.Core/Interfaces/ISourceCrawlerRegistry.cs` with this exact content:
+Write `SaddleRAG.Core/Interfaces/ISourceCrawlerRegistry.cs` with this exact content:
 
 ```csharp
 // // ISourceCrawlerRegistry.cs
@@ -252,11 +252,11 @@ Write `DocRAG.Core/Interfaces/ISourceCrawlerRegistry.cs` with this exact content
 
 #region Usings
 
-using DocRAG.Core.Enums;
+using SaddleRAG.Core.Enums;
 
 #endregion
 
-namespace DocRAG.Core.Interfaces;
+namespace SaddleRAG.Core.Interfaces;
 
 /// <summary>
 ///     Resolves an <see cref="ISourceCrawler" /> by <see cref="SourceKind" />.
@@ -281,14 +281,14 @@ public interface ISourceCrawlerRegistry
 
 - [ ] **Step 2: Build to verify**
 
-Run: `dotnet build E:/GitHub/DocRAG/DocRAG.Core/DocRAG.Core.csproj`
+Run: `dotnet build E:/GitHub/SaddleRAG/SaddleRAG.Core/SaddleRAG.Core.csproj`
 Expected: Build succeeded, 0 errors, 0 warnings.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git -C E:/GitHub/DocRAG add DocRAG.Core/Interfaces/ISourceCrawlerRegistry.cs
-git -C E:/GitHub/DocRAG commit -F .git-commit-msg.txt
+git -C E:/GitHub/SaddleRAG add SaddleRAG.Core/Interfaces/ISourceCrawlerRegistry.cs
+git -C E:/GitHub/SaddleRAG commit -F .git-commit-msg.txt
 ```
 
 Commit message:
@@ -307,12 +307,12 @@ adds an ISourceCrawler to DI.
 ### Task 4: Implement `SourceCrawlerRegistry` with TDD
 
 **Files:**
-- Test: `DocRAG.Tests/Crawling/SourceCrawlerRegistryTests.cs`
-- Create: `DocRAG.Ingestion/Crawling/SourceCrawlerRegistry.cs`
+- Test: `SaddleRAG.Tests/Crawling/SourceCrawlerRegistryTests.cs`
+- Create: `SaddleRAG.Ingestion/Crawling/SourceCrawlerRegistry.cs`
 
 - [ ] **Step 1: Write the failing tests**
 
-Write `DocRAG.Tests/Crawling/SourceCrawlerRegistryTests.cs` with this exact content:
+Write `SaddleRAG.Tests/Crawling/SourceCrawlerRegistryTests.cs` with this exact content:
 
 ```csharp
 // // SourceCrawlerRegistryTests.cs
@@ -322,14 +322,14 @@ Write `DocRAG.Tests/Crawling/SourceCrawlerRegistryTests.cs` with this exact cont
 #region Usings
 
 using System.Threading.Channels;
-using DocRAG.Core.Enums;
-using DocRAG.Core.Interfaces;
-using DocRAG.Core.Models;
-using DocRAG.Ingestion.Crawling;
+using SaddleRAG.Core.Enums;
+using SaddleRAG.Core.Interfaces;
+using SaddleRAG.Core.Models;
+using SaddleRAG.Ingestion.Crawling;
 
 #endregion
 
-namespace DocRAG.Tests.Crawling;
+namespace SaddleRAG.Tests.Crawling;
 
 public sealed class SourceCrawlerRegistryTests
 {
@@ -426,12 +426,12 @@ public sealed class SourceCrawlerRegistryTests
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `dotnet test E:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj --filter FullyQualifiedName~SourceCrawlerRegistryTests`
+Run: `dotnet test E:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj --filter FullyQualifiedName~SourceCrawlerRegistryTests`
 Expected: FAIL — `SourceCrawlerRegistry` type does not exist.
 
 - [ ] **Step 3: Create the implementation**
 
-Write `DocRAG.Ingestion/Crawling/SourceCrawlerRegistry.cs` with this exact content:
+Write `SaddleRAG.Ingestion/Crawling/SourceCrawlerRegistry.cs` with this exact content:
 
 ```csharp
 // // SourceCrawlerRegistry.cs
@@ -440,12 +440,12 @@ Write `DocRAG.Ingestion/Crawling/SourceCrawlerRegistry.cs` with this exact conte
 
 #region Usings
 
-using DocRAG.Core.Enums;
-using DocRAG.Core.Interfaces;
+using SaddleRAG.Core.Enums;
+using SaddleRAG.Core.Interfaces;
 
 #endregion
 
-namespace DocRAG.Ingestion.Crawling;
+namespace SaddleRAG.Ingestion.Crawling;
 
 /// <summary>
 ///     Default <see cref="ISourceCrawlerRegistry" /> built from the set of
@@ -491,14 +491,14 @@ public sealed class SourceCrawlerRegistry : ISourceCrawlerRegistry
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `dotnet test E:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj --filter FullyQualifiedName~SourceCrawlerRegistryTests`
+Run: `dotnet test E:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj --filter FullyQualifiedName~SourceCrawlerRegistryTests`
 Expected: PASS — 7/7 tests passing.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git -C E:/GitHub/DocRAG add DocRAG.Ingestion/Crawling/SourceCrawlerRegistry.cs DocRAG.Tests/Crawling/SourceCrawlerRegistryTests.cs
-git -C E:/GitHub/DocRAG commit -F .git-commit-msg.txt
+git -C E:/GitHub/SaddleRAG add SaddleRAG.Ingestion/Crawling/SourceCrawlerRegistry.cs SaddleRAG.Tests/Crawling/SourceCrawlerRegistryTests.cs
+git -C E:/GitHub/SaddleRAG commit -F .git-commit-msg.txt
 ```
 
 Commit message:
@@ -520,11 +520,11 @@ TryGet positive/negative, duplicate-kind detection, null-arg validation.
 ### Task 5: Add `SourceKind` field to `ScrapeJob`
 
 **Files:**
-- Modify: `DocRAG.Core/Models/ScrapeJob.cs`
+- Modify: `SaddleRAG.Core/Models/ScrapeJob.cs`
 
 - [ ] **Step 1: Add `SourceKind` property after `Version` (default `Web`)**
 
-In `DocRAG.Core/Models/ScrapeJob.cs`, after the `Version` property block (currently at lines 35–37) and before the `AllowedUrlPatterns` block, insert:
+In `SaddleRAG.Core/Models/ScrapeJob.cs`, after the `Version` property block (currently at lines 35–37) and before the `AllowedUrlPatterns` block, insert:
 
 ```csharp
     /// <summary>
@@ -540,19 +540,19 @@ The full property block, in context (verify by reading the file before/after the
 
 - [ ] **Step 2: Build to verify**
 
-Run: `dotnet build E:/GitHub/DocRAG/DocRAG.Core/DocRAG.Core.csproj`
-Expected: Build succeeded, 0 errors, 0 warnings. The existing `using DocRAG.Core.Enums;` import already covers the new property.
+Run: `dotnet build E:/GitHub/SaddleRAG/SaddleRAG.Core/SaddleRAG.Core.csproj`
+Expected: Build succeeded, 0 errors, 0 warnings. The existing `using SaddleRAG.Core.Enums;` import already covers the new property.
 
 - [ ] **Step 3: Build the full solution to confirm no consumer breaks (default makes this backward-compatible)**
 
-Run: `dotnet build E:/GitHub/DocRAG/DocRAG.slnx`
+Run: `dotnet build E:/GitHub/SaddleRAG/SaddleRAG.slnx`
 Expected: Build succeeded, 0 errors. All existing `new ScrapeJob { ... }` initializers work without supplying `SourceKind` because it has a default.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git -C E:/GitHub/DocRAG add DocRAG.Core/Models/ScrapeJob.cs
-git -C E:/GitHub/DocRAG commit -F .git-commit-msg.txt
+git -C E:/GitHub/SaddleRAG add SaddleRAG.Core/Models/ScrapeJob.cs
+git -C E:/GitHub/SaddleRAG commit -F .git-commit-msg.txt
 ```
 
 Commit message:
@@ -570,12 +570,12 @@ configurations continue to work without change.
 ### Task 6: Make `PageCrawler` implement `ISourceCrawler`
 
 **Files:**
-- Test: `DocRAG.Tests/Crawling/PageCrawlerKindTests.cs`
-- Modify: `DocRAG.Ingestion/Crawling/PageCrawler.cs`
+- Test: `SaddleRAG.Tests/Crawling/PageCrawlerKindTests.cs`
+- Modify: `SaddleRAG.Ingestion/Crawling/PageCrawler.cs`
 
 - [ ] **Step 1: Write the failing test**
 
-Write `DocRAG.Tests/Crawling/PageCrawlerKindTests.cs` with this exact content:
+Write `SaddleRAG.Tests/Crawling/PageCrawlerKindTests.cs` with this exact content:
 
 ```csharp
 // // PageCrawlerKindTests.cs
@@ -584,14 +584,14 @@ Write `DocRAG.Tests/Crawling/PageCrawlerKindTests.cs` with this exact content:
 
 #region Usings
 
-using DocRAG.Core.Enums;
-using DocRAG.Core.Interfaces;
-using DocRAG.Ingestion.Crawling;
+using SaddleRAG.Core.Enums;
+using SaddleRAG.Core.Interfaces;
+using SaddleRAG.Ingestion.Crawling;
 using Microsoft.Extensions.Logging;
 
 #endregion
 
-namespace DocRAG.Tests.Crawling;
+namespace SaddleRAG.Tests.Crawling;
 
 public sealed class PageCrawlerKindTests
 {
@@ -618,12 +618,12 @@ public sealed class PageCrawlerKindTests
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `dotnet test E:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj --filter FullyQualifiedName~PageCrawlerKindTests`
+Run: `dotnet test E:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj --filter FullyQualifiedName~PageCrawlerKindTests`
 Expected: FAIL — `PageCrawler` does not implement `ISourceCrawler` and has no `Kind` property.
 
 - [ ] **Step 3: Add the interface declaration and `Kind` property to `PageCrawler`**
 
-In `DocRAG.Ingestion/Crawling/PageCrawler.cs`:
+In `SaddleRAG.Ingestion/Crawling/PageCrawler.cs`:
 
 a) Update the `using` block (after line 14 `using Microsoft.Extensions.Logging;`) to include the Core enums and interfaces. Replace the existing usings region:
 
@@ -635,16 +635,16 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Channels;
-using DocRAG.Core.Enums;
-using DocRAG.Core.Interfaces;
-using DocRAG.Core.Models;
+using SaddleRAG.Core.Enums;
+using SaddleRAG.Core.Interfaces;
+using SaddleRAG.Core.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Playwright;
 
 #endregion
 ```
 
-(`DocRAG.Core.Enums` is already there; add `DocRAG.Core.Interfaces` if not present.)
+(`SaddleRAG.Core.Enums` is already there; add `SaddleRAG.Core.Interfaces` if not present.)
 
 b) Change the class declaration (line 28) from:
 
@@ -670,19 +670,19 @@ c) Add the `Kind` property. Insert it immediately after the constructor (after t
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `dotnet test E:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj --filter FullyQualifiedName~PageCrawlerKindTests`
+Run: `dotnet test E:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj --filter FullyQualifiedName~PageCrawlerKindTests`
 Expected: PASS — 2/2 tests passing.
 
 - [ ] **Step 5: Build the full solution to confirm `PageCrawler.CrawlAsync` already satisfies the interface signature**
 
-Run: `dotnet build E:/GitHub/DocRAG/DocRAG.slnx`
+Run: `dotnet build E:/GitHub/SaddleRAG/SaddleRAG.slnx`
 Expected: Build succeeded, 0 errors. The existing `CrawlAsync(ScrapeJob, ChannelWriter<PageRecord>, IReadOnlySet<string>?, Action<int>?, Action<int>?, CancellationToken)` matches `ISourceCrawler.CrawlAsync` exactly.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git -C E:/GitHub/DocRAG add DocRAG.Ingestion/Crawling/PageCrawler.cs DocRAG.Tests/Crawling/PageCrawlerKindTests.cs
-git -C E:/GitHub/DocRAG commit -F .git-commit-msg.txt
+git -C E:/GitHub/SaddleRAG add SaddleRAG.Ingestion/Crawling/PageCrawler.cs SaddleRAG.Tests/Crawling/PageCrawlerKindTests.cs
+git -C E:/GitHub/SaddleRAG commit -F .git-commit-msg.txt
 ```
 
 Commit message:
@@ -702,12 +702,12 @@ and called directly from MCP tooling, not part of the abstraction.
 ### Task 7: Refactor `IngestionOrchestrator` to dispatch through the registry
 
 **Files:**
-- Test: `DocRAG.Tests/Ingestion/IngestionOrchestratorDispatchTests.cs`
-- Modify: `DocRAG.Ingestion/IngestionOrchestrator.cs`
+- Test: `SaddleRAG.Tests/Ingestion/IngestionOrchestratorDispatchTests.cs`
+- Modify: `SaddleRAG.Ingestion/IngestionOrchestrator.cs`
 
 - [ ] **Step 1: Write the failing dispatch test**
 
-Write `DocRAG.Tests/Ingestion/IngestionOrchestratorDispatchTests.cs` with this exact content:
+Write `SaddleRAG.Tests/Ingestion/IngestionOrchestratorDispatchTests.cs` with this exact content:
 
 ```csharp
 // // IngestionOrchestratorDispatchTests.cs
@@ -717,20 +717,20 @@ Write `DocRAG.Tests/Ingestion/IngestionOrchestratorDispatchTests.cs` with this e
 #region Usings
 
 using System.Threading.Channels;
-using DocRAG.Core.Enums;
-using DocRAG.Core.Interfaces;
-using DocRAG.Core.Models;
-using DocRAG.Ingestion;
-using DocRAG.Ingestion.Chunking;
-using DocRAG.Ingestion.Classification;
-using DocRAG.Ingestion.Crawling;
-using DocRAG.Ingestion.Embedding;
+using SaddleRAG.Core.Enums;
+using SaddleRAG.Core.Interfaces;
+using SaddleRAG.Core.Models;
+using SaddleRAG.Ingestion;
+using SaddleRAG.Ingestion.Chunking;
+using SaddleRAG.Ingestion.Classification;
+using SaddleRAG.Ingestion.Crawling;
+using SaddleRAG.Ingestion.Embedding;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 #endregion
 
-namespace DocRAG.Tests.Ingestion;
+namespace SaddleRAG.Tests.Ingestion;
 
 public sealed class IngestionOrchestratorDispatchTests
 {
@@ -842,12 +842,12 @@ public sealed class IngestionOrchestratorDispatchTests
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `dotnet test E:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj --filter FullyQualifiedName~IngestionOrchestratorDispatchTests`
+Run: `dotnet test E:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj --filter FullyQualifiedName~IngestionOrchestratorDispatchTests`
 Expected: FAIL — `IngestionOrchestrator` constructor still takes `PageCrawler` not `ISourceCrawlerRegistry`.
 
 - [ ] **Step 3: Refactor `IngestionOrchestrator` constructor and field**
 
-In `DocRAG.Ingestion/IngestionOrchestrator.cs`:
+In `SaddleRAG.Ingestion/IngestionOrchestrator.cs`:
 
 a) Replace the constructor (lines 27–46) with this exact block:
 
@@ -885,7 +885,7 @@ b) Replace the `private readonly PageCrawler mCrawler;` field (line 51) with:
 
 - [ ] **Step 4: Update `RunCrawlStageAsync` to dispatch through the registry**
 
-In `DocRAG.Ingestion/IngestionOrchestrator.cs`, replace the entire `RunCrawlStageAsync` method (lines 173–206) with:
+In `SaddleRAG.Ingestion/IngestionOrchestrator.cs`, replace the entire `RunCrawlStageAsync` method (lines 173–206) with:
 
 ```csharp
     private async Task RunCrawlStageAsync(ScrapeJob job,
@@ -936,17 +936,17 @@ The only behavioral change vs. the original: the crawler is resolved per-job fro
 
 - [ ] **Step 5: Update the `using` directives at the top of `IngestionOrchestrator.cs`**
 
-`DocRAG.Core.Interfaces` is already imported (line 9). No change needed; verify by re-reading lines 5–17 of the file. The `DocRAG.Ingestion.Crawling` import (line 13) can be removed if nothing else in the file references that namespace — but leave it, it costs nothing and other crawler-related symbols may resurface.
+`SaddleRAG.Core.Interfaces` is already imported (line 9). No change needed; verify by re-reading lines 5–17 of the file. The `SaddleRAG.Ingestion.Crawling` import (line 13) can be removed if nothing else in the file references that namespace — but leave it, it costs nothing and other crawler-related symbols may resurface.
 
 - [ ] **Step 6: Run the orchestrator dispatch tests to verify they pass**
 
-Run: `dotnet test E:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj --filter FullyQualifiedName~IngestionOrchestratorDispatchTests`
+Run: `dotnet test E:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj --filter FullyQualifiedName~IngestionOrchestratorDispatchTests`
 Expected: PASS — 2/2 tests passing.
 
 - [ ] **Step 7: Build the full solution**
 
-Run: `dotnet build E:/GitHub/DocRAG/DocRAG.slnx`
-Expected: Build fails in `DocRAG.Mcp/Program.cs` because the DI container still wires `IngestionOrchestrator` against the old `PageCrawler` ctor parameter — that's expected and is fixed in Task 8. **Do not commit yet** if `Program.cs` is the only failing file. Otherwise, fix any other consumer the build flagged (none expected — nothing else constructs `IngestionOrchestrator` directly).
+Run: `dotnet build E:/GitHub/SaddleRAG/SaddleRAG.slnx`
+Expected: Build fails in `SaddleRAG.Mcp/Program.cs` because the DI container still wires `IngestionOrchestrator` against the old `PageCrawler` ctor parameter — that's expected and is fixed in Task 8. **Do not commit yet** if `Program.cs` is the only failing file. Otherwise, fix any other consumer the build flagged (none expected — nothing else constructs `IngestionOrchestrator` directly).
 
 If the only failure is in `Program.cs`, proceed to Task 8 before committing this task.
 
@@ -959,11 +959,11 @@ This task's commit happens at the end of Task 8 to keep the tree green. Skip the
 ### Task 8: Wire DI in `Program.cs`
 
 **Files:**
-- Modify: `DocRAG.Mcp/Program.cs`
+- Modify: `SaddleRAG.Mcp/Program.cs`
 
 - [ ] **Step 1: Register `PageCrawler` as `ISourceCrawler` and add the registry**
 
-In `DocRAG.Mcp/Program.cs`, find the existing crawler registration block (lines 187–195):
+In `SaddleRAG.Mcp/Program.cs`, find the existing crawler registration block (lines 187–195):
 
 ```csharp
 builder.Services.AddSingleton<GitHubRepoScraper>();
@@ -1001,16 +1001,16 @@ The forwarding registration (`sp => sp.GetRequiredService<PageCrawler>()`) ensur
 
 - [ ] **Step 2: Verify the using directives at the top of `Program.cs` cover the new types**
 
-`DocRAG.Core.Interfaces` is already imported (line 18 area). `DocRAG.Ingestion.Crawling` is imported (line 28 area). No changes needed.
+`SaddleRAG.Core.Interfaces` is already imported (line 18 area). `SaddleRAG.Ingestion.Crawling` is imported (line 28 area). No changes needed.
 
 - [ ] **Step 3: Build the full solution**
 
-Run: `dotnet build E:/GitHub/DocRAG/DocRAG.slnx`
+Run: `dotnet build E:/GitHub/SaddleRAG/SaddleRAG.slnx`
 Expected: Build succeeded, 0 errors, 0 warnings.
 
 - [ ] **Step 4: Run the full test suite**
 
-Run: `dotnet test E:/GitHub/DocRAG/DocRAG.slnx --filter "Category!=Integration"`
+Run: `dotnet test E:/GitHub/SaddleRAG/SaddleRAG.slnx --filter "Category!=Integration"`
 Expected: PASS — all unit tests green (existing + new `SourceCrawlerRegistryTests`, `PageCrawlerKindTests`, `IngestionOrchestratorDispatchTests`).
 
 (Skip integration tests — they hit live NuGet/npm/PyPI APIs and are not relevant to this refactor.)
@@ -1018,8 +1018,8 @@ Expected: PASS — all unit tests green (existing + new `SourceCrawlerRegistryTe
 - [ ] **Step 5: Commit Tasks 7 + 8 together**
 
 ```bash
-git -C E:/GitHub/DocRAG add DocRAG.Ingestion/IngestionOrchestrator.cs DocRAG.Tests/Ingestion/IngestionOrchestratorDispatchTests.cs DocRAG.Mcp/Program.cs
-git -C E:/GitHub/DocRAG commit -F .git-commit-msg.txt
+git -C E:/GitHub/SaddleRAG add SaddleRAG.Ingestion/IngestionOrchestrator.cs SaddleRAG.Tests/Ingestion/IngestionOrchestratorDispatchTests.cs SaddleRAG.Mcp/Program.cs
+git -C E:/GitHub/SaddleRAG commit -F .git-commit-msg.txt
 ```
 
 Commit message:
@@ -1047,13 +1047,13 @@ crawlers and substituted pipeline dependencies.
 Direct-repo entry — when a user submits a `https://github.com/owner/repo` URL with `SourceKind=GitHub`, the registry routes to `GitHubRepoScraper.CrawlAsync`. The internal collaboration where `PageCrawler` calls `GitHubRepoScraper.ScrapeRepositoryAsync` for *discovered* GitHub links during a Web crawl is unchanged — that call path stays direct and does not flow through the registry.
 
 **Files:**
-- Test: `DocRAG.Tests/Crawling/GitHubRepoScraperKindTests.cs`
-- Modify: `DocRAG.Ingestion/Crawling/GitHubRepoScraper.cs`
-- Modify: `DocRAG.Mcp/Program.cs`
+- Test: `SaddleRAG.Tests/Crawling/GitHubRepoScraperKindTests.cs`
+- Modify: `SaddleRAG.Ingestion/Crawling/GitHubRepoScraper.cs`
+- Modify: `SaddleRAG.Mcp/Program.cs`
 
 - [ ] **Step 1: Write the failing tests**
 
-Write `DocRAG.Tests/Crawling/GitHubRepoScraperKindTests.cs` with this exact content:
+Write `SaddleRAG.Tests/Crawling/GitHubRepoScraperKindTests.cs` with this exact content:
 
 ```csharp
 // // GitHubRepoScraperKindTests.cs
@@ -1063,15 +1063,15 @@ Write `DocRAG.Tests/Crawling/GitHubRepoScraperKindTests.cs` with this exact cont
 #region Usings
 
 using System.Threading.Channels;
-using DocRAG.Core.Enums;
-using DocRAG.Core.Interfaces;
-using DocRAG.Core.Models;
-using DocRAG.Ingestion.Crawling;
+using SaddleRAG.Core.Enums;
+using SaddleRAG.Core.Interfaces;
+using SaddleRAG.Core.Models;
+using SaddleRAG.Ingestion.Crawling;
 using Microsoft.Extensions.Logging;
 
 #endregion
 
-namespace DocRAG.Tests.Crawling;
+namespace SaddleRAG.Tests.Crawling;
 
 public sealed class GitHubRepoScraperKindTests
 {
@@ -1143,14 +1143,14 @@ public sealed class GitHubRepoScraperKindTests
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `dotnet test E:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj --filter FullyQualifiedName~GitHubRepoScraperKindTests`
+Run: `dotnet test E:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj --filter FullyQualifiedName~GitHubRepoScraperKindTests`
 Expected: FAIL — `GitHubRepoScraper` does not implement `ISourceCrawler` and has no `Kind` property or `CrawlAsync` method.
 
 - [ ] **Step 3: Modify `GitHubRepoScraper` class declaration and add the abstraction members**
 
-In `DocRAG.Ingestion/Crawling/GitHubRepoScraper.cs`:
+In `SaddleRAG.Ingestion/Crawling/GitHubRepoScraper.cs`:
 
-a) Update the `using` block (top of file) to include `System.Threading.Channels` and `DocRAG.Core.Enums` (if not already). The full usings region should read:
+a) Update the `using` block (top of file) to include `System.Threading.Channels` and `SaddleRAG.Core.Enums` (if not already). The full usings region should read:
 
 ```csharp
 #region Usings
@@ -1160,15 +1160,15 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Channels;
-using DocRAG.Core.Enums;
-using DocRAG.Core.Interfaces;
-using DocRAG.Core.Models;
+using SaddleRAG.Core.Enums;
+using SaddleRAG.Core.Interfaces;
+using SaddleRAG.Core.Models;
 using Microsoft.Extensions.Logging;
 
 #endregion
 ```
 
-(`System.Threading.Channels` is already present; `DocRAG.Core.Enums` may or may not be — add if missing.)
+(`System.Threading.Channels` is already present; `SaddleRAG.Core.Enums` may or may not be — add if missing.)
 
 b) Change the class declaration (line 28) from:
 
@@ -1233,12 +1233,12 @@ The internal `ScrapeRepositoryAsync` method is unchanged — `PageCrawler` conti
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `dotnet test E:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj --filter FullyQualifiedName~GitHubRepoScraperKindTests`
+Run: `dotnet test E:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj --filter FullyQualifiedName~GitHubRepoScraperKindTests`
 Expected: PASS — 4/4 tests passing.
 
 - [ ] **Step 5: Register `GitHubRepoScraper` as `ISourceCrawler` in DI**
 
-In `DocRAG.Mcp/Program.cs`, find the `ISourceCrawler` registration block added in Task 8:
+In `SaddleRAG.Mcp/Program.cs`, find the `ISourceCrawler` registration block added in Task 8:
 
 ```csharp
 // Register PageCrawler as the ISourceCrawler for SourceKind.Web. Future products
@@ -1265,19 +1265,19 @@ The forwarding registration ensures the same `GitHubRepoScraper` instance answer
 
 - [ ] **Step 6: Build the full solution**
 
-Run: `dotnet build E:/GitHub/DocRAG/DocRAG.slnx`
+Run: `dotnet build E:/GitHub/SaddleRAG/SaddleRAG.slnx`
 Expected: Build succeeded, 0 errors, 0 warnings.
 
 - [ ] **Step 7: Run the full unit test suite**
 
-Run: `dotnet test E:/GitHub/DocRAG/DocRAG.slnx --filter "Category!=Integration"`
+Run: `dotnet test E:/GitHub/SaddleRAG/SaddleRAG.slnx --filter "Category!=Integration"`
 Expected: All unit tests pass (existing + 4 new tests in `GitHubRepoScraperKindTests`).
 
 - [ ] **Step 8: Commit**
 
 ```bash
-git -C E:/GitHub/DocRAG add DocRAG.Ingestion/Crawling/GitHubRepoScraper.cs DocRAG.Tests/Crawling/GitHubRepoScraperKindTests.cs DocRAG.Mcp/Program.cs
-git -C E:/GitHub/DocRAG commit -F .git-commit-msg.txt
+git -C E:/GitHub/SaddleRAG add SaddleRAG.Ingestion/Crawling/GitHubRepoScraper.cs SaddleRAG.Tests/Crawling/GitHubRepoScraperKindTests.cs SaddleRAG.Mcp/Program.cs
+git -C E:/GitHub/SaddleRAG commit -F .git-commit-msg.txt
 ```
 
 Commit message:
@@ -1308,15 +1308,15 @@ on non-GitHub RootUrl, channel completes even on parse failure.
 The MCP `dryrun_scrape` tool today depends on the concrete `PageCrawler`. Extracting an `IPageDryRunner` interface lets the tool depend on an abstraction and lets future crawlers (FileSystem, Video, ...) opt into dry-run support without touching the MCP tool.
 
 **Files:**
-- Create: `DocRAG.Core/Interfaces/IPageDryRunner.cs`
-- Test: `DocRAG.Tests/Crawling/PageCrawlerDryRunnerTests.cs`
-- Modify: `DocRAG.Ingestion/Crawling/PageCrawler.cs`
-- Modify: `DocRAG.Mcp/Tools/IngestionTools.cs`
-- Modify: `DocRAG.Mcp/Program.cs`
+- Create: `SaddleRAG.Core/Interfaces/IPageDryRunner.cs`
+- Test: `SaddleRAG.Tests/Crawling/PageCrawlerDryRunnerTests.cs`
+- Modify: `SaddleRAG.Ingestion/Crawling/PageCrawler.cs`
+- Modify: `SaddleRAG.Mcp/Tools/IngestionTools.cs`
+- Modify: `SaddleRAG.Mcp/Program.cs`
 
 - [ ] **Step 1: Create the interface**
 
-Write `DocRAG.Core/Interfaces/IPageDryRunner.cs` with this exact content:
+Write `SaddleRAG.Core/Interfaces/IPageDryRunner.cs` with this exact content:
 
 ```csharp
 // // IPageDryRunner.cs
@@ -1325,11 +1325,11 @@ Write `DocRAG.Core/Interfaces/IPageDryRunner.cs` with this exact content:
 
 #region Usings
 
-using DocRAG.Core.Models;
+using SaddleRAG.Core.Models;
 
 #endregion
 
-namespace DocRAG.Core.Interfaces;
+namespace SaddleRAG.Core.Interfaces;
 
 /// <summary>
 ///     Dry-runs a scrape configuration without writing to MongoDB or cloning
@@ -1350,7 +1350,7 @@ public interface IPageDryRunner
 
 - [ ] **Step 2: Write the failing test**
 
-Write `DocRAG.Tests/Crawling/PageCrawlerDryRunnerTests.cs` with this exact content:
+Write `SaddleRAG.Tests/Crawling/PageCrawlerDryRunnerTests.cs` with this exact content:
 
 ```csharp
 // // PageCrawlerDryRunnerTests.cs
@@ -1359,12 +1359,12 @@ Write `DocRAG.Tests/Crawling/PageCrawlerDryRunnerTests.cs` with this exact conte
 
 #region Usings
 
-using DocRAG.Core.Interfaces;
-using DocRAG.Ingestion.Crawling;
+using SaddleRAG.Core.Interfaces;
+using SaddleRAG.Ingestion.Crawling;
 
 #endregion
 
-namespace DocRAG.Tests.Crawling;
+namespace SaddleRAG.Tests.Crawling;
 
 public sealed class PageCrawlerDryRunnerTests
 {
@@ -1378,12 +1378,12 @@ public sealed class PageCrawlerDryRunnerTests
 
 - [ ] **Step 3: Run the test to verify it fails**
 
-Run: `dotnet test E:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj --filter FullyQualifiedName~PageCrawlerDryRunnerTests`
+Run: `dotnet test E:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj --filter FullyQualifiedName~PageCrawlerDryRunnerTests`
 Expected: FAIL — `PageCrawler` does not implement `IPageDryRunner`.
 
 - [ ] **Step 4: Add the interface to `PageCrawler`'s class declaration**
 
-In `DocRAG.Ingestion/Crawling/PageCrawler.cs`, change the class declaration (modified in Task 6) from:
+In `SaddleRAG.Ingestion/Crawling/PageCrawler.cs`, change the class declaration (modified in Task 6) from:
 
 ```csharp
 public class PageCrawler : ISourceCrawler
@@ -1399,12 +1399,12 @@ The existing `DryRunAsync(ScrapeJob, CancellationToken)` method on `PageCrawler`
 
 - [ ] **Step 5: Run tests to verify they pass**
 
-Run: `dotnet test E:/GitHub/DocRAG/DocRAG.Tests/DocRAG.Tests.csproj --filter FullyQualifiedName~PageCrawlerDryRunnerTests`
+Run: `dotnet test E:/GitHub/SaddleRAG/SaddleRAG.Tests/SaddleRAG.Tests.csproj --filter FullyQualifiedName~PageCrawlerDryRunnerTests`
 Expected: PASS — 1/1 tests passing.
 
-- [ ] **Step 6: Update `DocRAG.Mcp/Tools/IngestionTools.cs` to depend on the interface**
+- [ ] **Step 6: Update `SaddleRAG.Mcp/Tools/IngestionTools.cs` to depend on the interface**
 
-In `DocRAG.Mcp/Tools/IngestionTools.cs`:
+In `SaddleRAG.Mcp/Tools/IngestionTools.cs`:
 
 a) Change the parameter on line 35 from:
 
@@ -1430,11 +1430,11 @@ to:
 var report = await dryRunner.DryRunAsync(job, ct);
 ```
 
-c) Update the `using` directives at the top of the file: ensure `using DocRAG.Core.Interfaces;` is present. After this change, `using DocRAG.Ingestion.Crawling;` may no longer be needed in this file (unless other tool methods reference symbols from that namespace). Read the full file first; if `PageCrawler`, `GitHubRepoScraper`, or `SourceCrawlerRegistry` are no longer referenced after this edit, remove the `using DocRAG.Ingestion.Crawling;` line. (Task 11 sweeps any stragglers.)
+c) Update the `using` directives at the top of the file: ensure `using SaddleRAG.Core.Interfaces;` is present. After this change, `using SaddleRAG.Ingestion.Crawling;` may no longer be needed in this file (unless other tool methods reference symbols from that namespace). Read the full file first; if `PageCrawler`, `GitHubRepoScraper`, or `SourceCrawlerRegistry` are no longer referenced after this edit, remove the `using SaddleRAG.Ingestion.Crawling;` line. (Task 11 sweeps any stragglers.)
 
 - [ ] **Step 7: Register `PageCrawler` as `IPageDryRunner` in DI**
 
-In `DocRAG.Mcp/Program.cs`, locate the `ISourceCrawler` registration block (modified in Tasks 8 and 9). Add an `IPageDryRunner` registration immediately after the `ISourceCrawlerRegistry` registration:
+In `SaddleRAG.Mcp/Program.cs`, locate the `ISourceCrawler` registration block (modified in Tasks 8 and 9). Add an `IPageDryRunner` registration immediately after the `ISourceCrawlerRegistry` registration:
 
 ```csharp
 builder.Services.AddSingleton<ISourceCrawlerRegistry, SourceCrawlerRegistry>();
@@ -1448,19 +1448,19 @@ The forwarding registration ensures the same `PageCrawler` instance answers `Pag
 
 - [ ] **Step 8: Build the full solution**
 
-Run: `dotnet build E:/GitHub/DocRAG/DocRAG.slnx`
+Run: `dotnet build E:/GitHub/SaddleRAG/SaddleRAG.slnx`
 Expected: Build succeeded, 0 errors, 0 warnings.
 
 - [ ] **Step 9: Run the full unit test suite**
 
-Run: `dotnet test E:/GitHub/DocRAG/DocRAG.slnx --filter "Category!=Integration"`
+Run: `dotnet test E:/GitHub/SaddleRAG/SaddleRAG.slnx --filter "Category!=Integration"`
 Expected: All unit tests pass.
 
 - [ ] **Step 10: Commit**
 
 ```bash
-git -C E:/GitHub/DocRAG add DocRAG.Core/Interfaces/IPageDryRunner.cs DocRAG.Ingestion/Crawling/PageCrawler.cs DocRAG.Tests/Crawling/PageCrawlerDryRunnerTests.cs DocRAG.Mcp/Tools/IngestionTools.cs DocRAG.Mcp/Program.cs
-git -C E:/GitHub/DocRAG commit -F .git-commit-msg.txt
+git -C E:/GitHub/SaddleRAG add SaddleRAG.Core/Interfaces/IPageDryRunner.cs SaddleRAG.Ingestion/Crawling/PageCrawler.cs SaddleRAG.Tests/Crawling/PageCrawlerDryRunnerTests.cs SaddleRAG.Mcp/Tools/IngestionTools.cs SaddleRAG.Mcp/Program.cs
+git -C E:/GitHub/SaddleRAG commit -F .git-commit-msg.txt
 ```
 
 Commit message:
@@ -1480,20 +1480,20 @@ so no behavior changes.
 
 ---
 
-### Task 11: Sweep stale `DocRAG.Ingestion.Crawling` imports
+### Task 11: Sweep stale `SaddleRAG.Ingestion.Crawling` imports
 
-Cosmetic cleanup. After Tasks 7 and 10, `IngestionOrchestrator.cs` and `IngestionTools.cs` no longer reference symbols from the `DocRAG.Ingestion.Crawling` namespace; their `using` directives for that namespace are dead.
+Cosmetic cleanup. After Tasks 7 and 10, `IngestionOrchestrator.cs` and `IngestionTools.cs` no longer reference symbols from the `SaddleRAG.Ingestion.Crawling` namespace; their `using` directives for that namespace are dead.
 
 **Files:**
-- Modify: `DocRAG.Ingestion/IngestionOrchestrator.cs`
-- Modify: `DocRAG.Mcp/Tools/IngestionTools.cs` (only if not already cleaned up in Task 10 Step 6)
+- Modify: `SaddleRAG.Ingestion/IngestionOrchestrator.cs`
+- Modify: `SaddleRAG.Mcp/Tools/IngestionTools.cs` (only if not already cleaned up in Task 10 Step 6)
 
 - [ ] **Step 1: Verify which files have a stale crawling import**
 
 Run a Grep for the import across the affected projects:
 
-Search pattern: `using DocRAG\.Ingestion\.Crawling;`
-Across paths: `E:/GitHub/DocRAG/DocRAG.Ingestion/IngestionOrchestrator.cs`, `E:/GitHub/DocRAG/DocRAG.Mcp/Tools/`
+Search pattern: `using SaddleRAG\.Ingestion\.Crawling;`
+Across paths: `E:/GitHub/SaddleRAG/SaddleRAG.Ingestion/IngestionOrchestrator.cs`, `E:/GitHub/SaddleRAG/SaddleRAG.Mcp/Tools/`
 
 Expected: matches in `IngestionOrchestrator.cs` and possibly `IngestionTools.cs`. `Program.cs` should NOT be on this list — it still registers concrete `PageCrawler` and `GitHubRepoScraper` types and needs the import.
 
@@ -1501,39 +1501,39 @@ For each matching file, before removing the import, confirm the file references 
 
 - [ ] **Step 2: Remove the stale import from `IngestionOrchestrator.cs`**
 
-In `DocRAG.Ingestion/IngestionOrchestrator.cs`, find the usings block and delete the line:
+In `SaddleRAG.Ingestion/IngestionOrchestrator.cs`, find the usings block and delete the line:
 
 ```csharp
-using DocRAG.Ingestion.Crawling;
+using SaddleRAG.Ingestion.Crawling;
 ```
 
-Do not delete `using DocRAG.Ingestion.Chunking;` or `using DocRAG.Ingestion.Classification;` — those namespaces are still referenced (`CategoryAwareChunker`, `LlmClassifier`).
+Do not delete `using SaddleRAG.Ingestion.Chunking;` or `using SaddleRAG.Ingestion.Classification;` — those namespaces are still referenced (`CategoryAwareChunker`, `LlmClassifier`).
 
 - [ ] **Step 3: Remove the stale import from `IngestionTools.cs` (if not already done in Task 10)**
 
-If Task 10 Step 6 left `using DocRAG.Ingestion.Crawling;` in place, remove it now in `DocRAG.Mcp/Tools/IngestionTools.cs`. Verify no symbols from the namespace remain in the file before deleting.
+If Task 10 Step 6 left `using SaddleRAG.Ingestion.Crawling;` in place, remove it now in `SaddleRAG.Mcp/Tools/IngestionTools.cs`. Verify no symbols from the namespace remain in the file before deleting.
 
 - [ ] **Step 4: Build the full solution**
 
-Run: `dotnet build E:/GitHub/DocRAG/DocRAG.slnx -p:TreatWarningsAsErrors=true`
+Run: `dotnet build E:/GitHub/SaddleRAG/SaddleRAG.slnx -p:TreatWarningsAsErrors=true`
 Expected: Build succeeded, 0 errors, 0 warnings. (Treating warnings as errors here catches an "unused using" warning if you missed something — it would fail the build rather than slipping through.)
 
 - [ ] **Step 5: Run the full unit test suite**
 
-Run: `dotnet test E:/GitHub/DocRAG/DocRAG.slnx --filter "Category!=Integration"`
+Run: `dotnet test E:/GitHub/SaddleRAG/SaddleRAG.slnx --filter "Category!=Integration"`
 Expected: All unit tests pass — the import sweep is purely cosmetic and shouldn't affect test outcomes.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git -C E:/GitHub/DocRAG add DocRAG.Ingestion/IngestionOrchestrator.cs DocRAG.Mcp/Tools/IngestionTools.cs
-git -C E:/GitHub/DocRAG commit -F .git-commit-msg.txt
+git -C E:/GitHub/SaddleRAG add SaddleRAG.Ingestion/IngestionOrchestrator.cs SaddleRAG.Mcp/Tools/IngestionTools.cs
+git -C E:/GitHub/SaddleRAG commit -F .git-commit-msg.txt
 ```
 
 Commit message:
 
 ```
-Drop stale DocRAG.Ingestion.Crawling imports
+Drop stale SaddleRAG.Ingestion.Crawling imports
 
 After the registry refactor, IngestionOrchestrator and IngestionTools no
 longer reference symbols from the crawling namespace. Removed the dead
@@ -1549,12 +1549,12 @@ using directives. Program.cs still imports it (registers concrete types).
 
 - [ ] **Step 1: Full solution build with treat-warnings-as-errors**
 
-Run: `dotnet build E:/GitHub/DocRAG/DocRAG.slnx -p:TreatWarningsAsErrors=true`
+Run: `dotnet build E:/GitHub/SaddleRAG/SaddleRAG.slnx -p:TreatWarningsAsErrors=true`
 Expected: Build succeeded, 0 errors, 0 warnings.
 
 - [ ] **Step 2: Full unit test pass**
 
-Run: `dotnet test E:/GitHub/DocRAG/DocRAG.slnx --filter "Category!=Integration"`
+Run: `dotnet test E:/GitHub/SaddleRAG/SaddleRAG.slnx --filter "Category!=Integration"`
 Expected: All unit tests pass (existing + 16 new tests added by this plan: 7 registry, 2 PageCrawler.Kind, 1 PageCrawler.IPageDryRunner, 4 GitHubRepoScraper, 2 orchestrator dispatch).
 
 - [ ] **Step 3: Smoke-test the MCP service against real scrapes**
@@ -1566,7 +1566,7 @@ a) Ensure MongoDB and Ollama are running locally (defaults in `appsettings.Devel
 b) Run the service:
 
 ```bash
-dotnet run --project E:/GitHub/DocRAG/DocRAG.Mcp/DocRAG.Mcp.csproj
+dotnet run --project E:/GitHub/SaddleRAG/SaddleRAG.Mcp/SaddleRAG.Mcp.csproj
 ```
 
 Expected: server starts on `http://localhost:6100`, no errors in logs about missing `ISourceCrawler`, `ISourceCrawlerRegistry`, or `IPageDryRunner`.
@@ -1610,7 +1610,7 @@ If verification produced no code changes, this task closes with no commit. If yo
 - [x] DI wiring updated → Task 8
 - [x] `GitHubRepoScraper` promoted to top-level `ISourceCrawler` (Kind=GitHub) → Task 9
 - [x] `IPageDryRunner` extracted from `PageCrawler` and consumed by `IngestionTools` → Task 10
-- [x] Stale `DocRAG.Ingestion.Crawling` imports swept → Task 11
+- [x] Stale `SaddleRAG.Ingestion.Crawling` imports swept → Task 11
 - [x] Backward compatibility for coding product → Task 5 (default), Task 12 (verification)
 - [x] End-to-end smoke test exercises Web, GitHub, and dry-run paths → Task 12
 

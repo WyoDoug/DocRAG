@@ -1,7 +1,7 @@
 # scripts/grant-service-control.ps1
 #
 # One-time setup: grant the current Windows user the right to start, stop,
-# and query the DocRAGMcp service WITHOUT needing UAC elevation. After
+# and query the SaddleRAGMcp service WITHOUT needing UAC elevation. After
 # running this once, the dev-loop tasks (Stop / Start / Restart Service)
 # work from a non-elevated VS Code session.
 #
@@ -26,7 +26,7 @@
 [CmdletBinding()]
 param(
     [string]$UserName = $env:USERNAME,
-    [string]$ServiceName = 'DocRAGMcp',
+    [string]$ServiceName = 'SaddleRAGMcp',
     [switch]$Verify
 )
 
@@ -72,10 +72,10 @@ if (-not $isAdmin) {
 
     # Use the user's profile path (not $env:TEMP) for the transcript. When VS Code
     # is launched elevated, $env:TEMP points to C:\WINDOWS\TEMP which is unreadable
-    # by a filtered-admin parent process. The user's AppData\Local\DocRAG path is
+    # by a filtered-admin parent process. The user's AppData\Local\SaddleRAG path is
     # always user-owned and readable regardless of token state, and lives next to
-    # DocRAG's existing application logs.
-    $logDir = Join-Path $env:USERPROFILE 'AppData\Local\DocRAG'
+    # SaddleRAG's existing application logs.
+    $logDir = Join-Path $env:USERPROFILE 'AppData\Local\SaddleRAG'
     if (-not (Test-Path $logDir)) {
         New-Item -ItemType Directory -Path $logDir -Force | Out-Null
     }

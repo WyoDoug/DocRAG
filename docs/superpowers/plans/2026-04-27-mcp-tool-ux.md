@@ -2,16 +2,16 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make the DocRAG MCP tool surface usable by a fresh LLM consumer — fix cold-start dead ends, add visibility into library health, expose rename/delete/cancel, consolidate the two scrape tools, surface "this URL probably isn't docs" via recon delegation, and collapse redundant listing/resume tools.
+**Goal:** Make the SaddleRAG MCP tool surface usable by a fresh LLM consumer — fix cold-start dead ends, add visibility into library health, expose rename/delete/cancel, consolidate the two scrape tools, surface "this URL probably isn't docs" via recon delegation, and collapse redundant listing/resume tools.
 
 **Architecture:** Seven tracks (A–G) on the `feature/mcp-tool-ux` branch. Repository methods first (Track C foundation), then runtime/cancellation (F), surface consolidation (G), scrape consolidation (D), visibility (B), URL sanity (E), and cold-start orientation (A) last. All tracks share data-model touch-points but are otherwise independent. Each task ends with a commit so the implementation order can be reordered without merge pain.
 
-**Tech Stack:** .NET 10, C# (Penske coding standards: m-prefix instance fields, sm-prefix statics, Allman braces, single-return, ArgumentException validation, async-suffix), MongoDB.Driver, ModelContextProtocol.Server attributes, xunit + NSubstitute for tests. Solution file is `DocRAG.slnx`.
+**Tech Stack:** .NET 10, C# (Penske coding standards: m-prefix instance fields, sm-prefix statics, Allman braces, single-return, ArgumentException validation, async-suffix), MongoDB.Driver, ModelContextProtocol.Server attributes, xunit + NSubstitute for tests. Solution file is `SaddleRAG.slnx`.
 
 **Key references the engineer should re-read before starting:**
 - Spec: `docs/superpowers/specs/2026-04-27-mcp-tool-ux-design.md`
 - CLAUDE.md (repo root) — no AI attribution in commits/PRs, ever
-- Existing patterns: `DocRAG.Mcp/Tools/SymbolManagementTools.cs` (tool style), `DocRAG.Tests/Mcp/SymbolManagementToolsTests.cs` (test style), `DocRAG.Database/Repositories/LibraryRepository.cs` (repo style)
+- Existing patterns: `SaddleRAG.Mcp/Tools/SymbolManagementTools.cs` (tool style), `SaddleRAG.Tests/Mcp/SymbolManagementToolsTests.cs` (test style), `SaddleRAG.Database/Repositories/LibraryRepository.cs` (repo style)
 
 ---
 
@@ -19,39 +19,39 @@
 
 ### Files created
 
-- `DocRAG.Mcp/Tools/MutationTools.cs` — `rename_library`, `delete_library`, `delete_version`
-- `DocRAG.Mcp/Tools/HealthTools.cs` — `get_library_health`, `get_dashboard_index`
-- `DocRAG.Mcp/Tools/CancellationTools.cs` — `cancel_scrape`
-- `DocRAG.Mcp/Tools/UrlCorrectionTools.cs` — `submit_url_correction`
-- `DocRAG.Ingestion/Suspect/SuspectDetector.cs` — five heuristics
-- `DocRAG.Ingestion/Suspect/SuspectReason.cs` — string constants
-- `DocRAG.Tests/Mcp/MutationToolsTests.cs`
-- `DocRAG.Tests/Mcp/HealthToolsTests.cs`
-- `DocRAG.Tests/Mcp/CancellationToolsTests.cs`
-- `DocRAG.Tests/Mcp/UrlCorrectionToolsTests.cs`
-- `DocRAG.Tests/Mcp/ListSymbolsToolTests.cs`
-- `DocRAG.Tests/Suspect/SuspectDetectorTests.cs`
+- `SaddleRAG.Mcp/Tools/MutationTools.cs` — `rename_library`, `delete_library`, `delete_version`
+- `SaddleRAG.Mcp/Tools/HealthTools.cs` — `get_library_health`, `get_dashboard_index`
+- `SaddleRAG.Mcp/Tools/CancellationTools.cs` — `cancel_scrape`
+- `SaddleRAG.Mcp/Tools/UrlCorrectionTools.cs` — `submit_url_correction`
+- `SaddleRAG.Ingestion/Suspect/SuspectDetector.cs` — five heuristics
+- `SaddleRAG.Ingestion/Suspect/SuspectReason.cs` — string constants
+- `SaddleRAG.Tests/Mcp/MutationToolsTests.cs`
+- `SaddleRAG.Tests/Mcp/HealthToolsTests.cs`
+- `SaddleRAG.Tests/Mcp/CancellationToolsTests.cs`
+- `SaddleRAG.Tests/Mcp/UrlCorrectionToolsTests.cs`
+- `SaddleRAG.Tests/Mcp/ListSymbolsToolTests.cs`
+- `SaddleRAG.Tests/Suspect/SuspectDetectorTests.cs`
 
 ### Files modified
 
-- `DocRAG.Core/Enums/ScrapeJobStatus.cs` — add `Cancelled = 4`
-- `DocRAG.Core/Enums/IngestStatus.cs` — add `UrlSuspect`, `InProgress`
-- `DocRAG.Core/Models/LibraryVersionRecord.cs` — add `Suspect`, `SuspectReasons`, `LastSuspectEvaluatedAt`, `BoundaryIssuePct`
-- `DocRAG.Core/Models/ScrapeJobRecord.cs` — add `LastProgressAt`, `CancelledAt`
-- `DocRAG.Core/Interfaces/ILibraryRepository.cs` — add `RenameAsync`, `DeleteAsync`, `DeleteVersionAsync`, `SetSuspectAsync`, `ClearSuspectAsync`
-- `DocRAG.Core/Interfaces/IChunkRepository.cs` — add `GetLanguageMixAsync`, `GetHostnameDistributionAsync`, `GetSampleTitlesAsync`
-- `DocRAG.Core/Interfaces/IPageRepository.cs` — add `DeleteAsync`
-- `DocRAG.Database/Repositories/LibraryRepository.cs` — implement new methods
-- `DocRAG.Database/Repositories/ChunkRepository.cs` — implement new aggregations
-- `DocRAG.Database/Repositories/PageRepository.cs` — implement `DeleteAsync`
-- `DocRAG.Mcp/Tools/LibraryTools.cs` — replace 4 list_* tools with `list_symbols`, add empty-state hint to `list_libraries`
-- `DocRAG.Mcp/Tools/IngestTools.cs` — add `IN_PROGRESS` and `URL_SUSPECT` branches to `ResolveStatus`, gate by `currentVersion!=null`/`Suspect`/`Running` lookups
-- `DocRAG.Mcp/Tools/ScrapeDocsTools.cs` — add `allowedUrlPatterns` / `excludedUrlPatterns` / `resume` to `scrape_docs`; remove `continue_scrape`
-- `DocRAG.Mcp/Tools/IngestionTools.cs` — remove `scrape_library`
-- `DocRAG.Mcp/Tools/RescrubTools.cs` — add `BoundaryHint` to output
-- `DocRAG.Ingestion/ScrapeJobRunner.cs` — add CTS registry, `CancelAsync`, `LastProgressAt` updates
-- `DocRAG.Ingestion/IngestionOrchestrator.cs` — call `SuspectDetector` inside `UpdateLibraryMetadataAsync`
-- `DocRAG.Ingestion/Recon/RescrubService.cs` — persist `BoundaryIssuePct` to `LibraryVersionRecord`
+- `SaddleRAG.Core/Enums/ScrapeJobStatus.cs` — add `Cancelled = 4`
+- `SaddleRAG.Core/Enums/IngestStatus.cs` — add `UrlSuspect`, `InProgress`
+- `SaddleRAG.Core/Models/LibraryVersionRecord.cs` — add `Suspect`, `SuspectReasons`, `LastSuspectEvaluatedAt`, `BoundaryIssuePct`
+- `SaddleRAG.Core/Models/ScrapeJobRecord.cs` — add `LastProgressAt`, `CancelledAt`
+- `SaddleRAG.Core/Interfaces/ILibraryRepository.cs` — add `RenameAsync`, `DeleteAsync`, `DeleteVersionAsync`, `SetSuspectAsync`, `ClearSuspectAsync`
+- `SaddleRAG.Core/Interfaces/IChunkRepository.cs` — add `GetLanguageMixAsync`, `GetHostnameDistributionAsync`, `GetSampleTitlesAsync`
+- `SaddleRAG.Core/Interfaces/IPageRepository.cs` — add `DeleteAsync`
+- `SaddleRAG.Database/Repositories/LibraryRepository.cs` — implement new methods
+- `SaddleRAG.Database/Repositories/ChunkRepository.cs` — implement new aggregations
+- `SaddleRAG.Database/Repositories/PageRepository.cs` — implement `DeleteAsync`
+- `SaddleRAG.Mcp/Tools/LibraryTools.cs` — replace 4 list_* tools with `list_symbols`, add empty-state hint to `list_libraries`
+- `SaddleRAG.Mcp/Tools/IngestTools.cs` — add `IN_PROGRESS` and `URL_SUSPECT` branches to `ResolveStatus`, gate by `currentVersion!=null`/`Suspect`/`Running` lookups
+- `SaddleRAG.Mcp/Tools/ScrapeDocsTools.cs` — add `allowedUrlPatterns` / `excludedUrlPatterns` / `resume` to `scrape_docs`; remove `continue_scrape`
+- `SaddleRAG.Mcp/Tools/IngestionTools.cs` — remove `scrape_library`
+- `SaddleRAG.Mcp/Tools/RescrubTools.cs` — add `BoundaryHint` to output
+- `SaddleRAG.Ingestion/ScrapeJobRunner.cs` — add CTS registry, `CancelAsync`, `LastProgressAt` updates
+- `SaddleRAG.Ingestion/IngestionOrchestrator.cs` — call `SuspectDetector` inside `UpdateLibraryMetadataAsync`
+- `SaddleRAG.Ingestion/Recon/RescrubService.cs` — persist `BoundaryIssuePct` to `LibraryVersionRecord`
 
 ### Note on the spec
 
@@ -64,13 +64,13 @@ Spec says `boundaryIssuePct` is "computed on-the-fly from `Chunk.BoundaryIssue` 
 ### Task C1: Add `IPageRepository.DeleteAsync`
 
 **Files:**
-- Modify: `DocRAG.Core/Interfaces/IPageRepository.cs`
-- Modify: `DocRAG.Database/Repositories/PageRepository.cs`
-- Test: `DocRAG.Tests/Mcp/MutationToolsTests.cs` (created in C7; for now, write a focused repo test in `DocRAG.Tests/Repositories/PageRepositoryTests.cs` if a similar one exists; otherwise inline-verify via the cascade test in C8)
+- Modify: `SaddleRAG.Core/Interfaces/IPageRepository.cs`
+- Modify: `SaddleRAG.Database/Repositories/PageRepository.cs`
+- Test: `SaddleRAG.Tests/Mcp/MutationToolsTests.cs` (created in C7; for now, write a focused repo test in `SaddleRAG.Tests/Repositories/PageRepositoryTests.cs` if a similar one exists; otherwise inline-verify via the cascade test in C8)
 
 - [ ] **Step 1: Add the interface method**
 
-In `DocRAG.Core/Interfaces/IPageRepository.cs`, add:
+In `SaddleRAG.Core/Interfaces/IPageRepository.cs`, add:
 
 ```csharp
 Task<long> DeleteAsync(string libraryId, string version, CancellationToken ct = default);
@@ -80,7 +80,7 @@ Returns the deleted row count (so cascade reporting can show `pages: N`).
 
 - [ ] **Step 2: Implement on `PageRepository`**
 
-In `DocRAG.Database/Repositories/PageRepository.cs`, add (alongside existing methods, follow the file's region pattern):
+In `SaddleRAG.Database/Repositories/PageRepository.cs`, add (alongside existing methods, follow the file's region pattern):
 
 ```csharp
 public async Task<long> DeleteAsync(string libraryId, string version, CancellationToken ct = default)
@@ -99,14 +99,14 @@ public async Task<long> DeleteAsync(string libraryId, string version, Cancellati
 
 - [ ] **Step 3: Build and confirm clean compile**
 
-Run: `dotnet build DocRAG.slnx --configuration Release -p:TreatWarningsAsErrors=true`
+Run: `dotnet build SaddleRAG.slnx --configuration Release -p:TreatWarningsAsErrors=true`
 Expected: build succeeds with no errors and no new warnings.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git -C /e/GitHub/DocRAG add DocRAG.Core/Interfaces/IPageRepository.cs DocRAG.Database/Repositories/PageRepository.cs
-git -C /e/GitHub/DocRAG commit -F /e/tmp/c1-msg.txt
+git -C /e/GitHub/SaddleRAG add SaddleRAG.Core/Interfaces/IPageRepository.cs SaddleRAG.Database/Repositories/PageRepository.cs
+git -C /e/GitHub/SaddleRAG commit -F /e/tmp/c1-msg.txt
 ```
 
 `/e/tmp/c1-msg.txt`:
@@ -123,8 +123,8 @@ Returns deleted count for cascade reporting.
 ### Task C2: Verify and align Bm25Shard / ExcludedSymbols delete signatures
 
 **Files:**
-- Read: `DocRAG.Core/Interfaces/IBm25ShardRepository.cs`
-- Read: `DocRAG.Core/Interfaces/IExcludedSymbolsRepository.cs`
+- Read: `SaddleRAG.Core/Interfaces/IBm25ShardRepository.cs`
+- Read: `SaddleRAG.Core/Interfaces/IExcludedSymbolsRepository.cs`
 - Possibly modify each if `DeleteAsync(libraryId, version)` doesn't exist or returns void instead of long
 
 - [ ] **Step 1: Read both interfaces and check for existing `DeleteAsync(libraryId, version)`**
@@ -137,12 +137,12 @@ In `Bm25ShardRepository.cs` and `ExcludedSymbolsRepository.cs`, ensure `DeleteAs
 
 - [ ] **Step 3: Audit existing callers**
 
-Run: `grep -rn "\.DeleteAsync" DocRAG.Mcp DocRAG.Ingestion DocRAG.Database`
+Run: `grep -rn "\.DeleteAsync" SaddleRAG.Mcp SaddleRAG.Ingestion SaddleRAG.Database`
 For any caller that ignored the void return, no change needed (they can keep ignoring `Task<long>` — `await` discards the value). For any caller that explicitly bound the return, update the binding.
 
 - [ ] **Step 4: Build clean**
 
-Run: `dotnet build DocRAG.slnx --configuration Release -p:TreatWarningsAsErrors=true`
+Run: `dotnet build SaddleRAG.slnx --configuration Release -p:TreatWarningsAsErrors=true`
 Expected: build succeeds.
 
 - [ ] **Step 5: Commit**
@@ -181,8 +181,8 @@ groundwork for Track C delete tools.
 ### Task C4: Add `ILibraryRepository.DeleteVersionAsync`
 
 **Files:**
-- Modify: `DocRAG.Core/Interfaces/ILibraryRepository.cs`
-- Modify: `DocRAG.Database/Repositories/LibraryRepository.cs`
+- Modify: `SaddleRAG.Core/Interfaces/ILibraryRepository.cs`
+- Modify: `SaddleRAG.Database/Repositories/LibraryRepository.cs`
 
 This method *only* deletes from the `LibraryVersions` collection and adjusts the parent `Library.CurrentVersion` if needed. The full per-version cascade lives in the MCP tool (Task C8) so the repo stays focused on a single collection.
 
@@ -194,18 +194,18 @@ public sealed record DeleteVersionResult(long VersionsDeleted, bool LibraryRowDe
 Task<DeleteVersionResult> DeleteVersionAsync(string libraryId, string version, CancellationToken ct = default);
 ```
 
-Define `DeleteVersionResult` in `DocRAG.Core/Models/DeleteVersionResult.cs` (new file).
+Define `DeleteVersionResult` in `SaddleRAG.Core/Models/DeleteVersionResult.cs` (new file).
 
 - [ ] **Step 2: Create the result record**
 
-Create `DocRAG.Core/Models/DeleteVersionResult.cs`:
+Create `SaddleRAG.Core/Models/DeleteVersionResult.cs`:
 
 ```csharp
 // DeleteVersionResult.cs
 // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
 // Use subject to the MIT License.
 
-namespace DocRAG.Core.Models;
+namespace SaddleRAG.Core.Models;
 
 /// <summary>
 ///     Outcome of a single-version delete: how many version rows were
@@ -345,14 +345,14 @@ The rename is a multi-collection update: every collection that stores `LibraryId
 
 - [ ] **Step 1: Define result record**
 
-Create `DocRAG.Core/Models/RenameLibraryResult.cs`:
+Create `SaddleRAG.Core/Models/RenameLibraryResult.cs`:
 
 ```csharp
 // RenameLibraryResult.cs
 // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
 // Use subject to the MIT License.
 
-namespace DocRAG.Core.Models;
+namespace SaddleRAG.Core.Models;
 
 /// <summary>
 ///     Per-collection update counts from a library rename.
@@ -482,25 +482,25 @@ for cascade-style reporting.
 ### Task C7: `rename_library` MCP tool
 
 **Files:**
-- Create: `DocRAG.Mcp/Tools/MutationTools.cs`
-- Test: `DocRAG.Tests/Mcp/MutationToolsTests.cs`
+- Create: `SaddleRAG.Mcp/Tools/MutationTools.cs`
+- Test: `SaddleRAG.Tests/Mcp/MutationToolsTests.cs`
 
 - [ ] **Step 1: Write the failing test**
 
-Create `DocRAG.Tests/Mcp/MutationToolsTests.cs`:
+Create `SaddleRAG.Tests/Mcp/MutationToolsTests.cs`:
 
 ```csharp
 // MutationToolsTests.cs
 // Copyright © 2012–Present Jackalope Technologies, Inc. and Doug Gerard.
 // Use subject to the MIT License.
 
-using DocRAG.Core.Interfaces;
-using DocRAG.Core.Models;
-using DocRAG.Database.Repositories;
-using DocRAG.Mcp.Tools;
+using SaddleRAG.Core.Interfaces;
+using SaddleRAG.Core.Models;
+using SaddleRAG.Database.Repositories;
+using SaddleRAG.Mcp.Tools;
 using NSubstitute;
 
-namespace DocRAG.Tests.Mcp;
+namespace SaddleRAG.Tests.Mcp;
 
 public sealed class MutationToolsTests
 {
@@ -572,12 +572,12 @@ public sealed class MutationToolsTests
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `dotnet test DocRAG.slnx --configuration Release --filter "MutationToolsTests"`
+Run: `dotnet test SaddleRAG.slnx --configuration Release --filter "MutationToolsTests"`
 Expected: FAIL — `MutationTools` type does not exist.
 
 - [ ] **Step 3: Create `MutationTools.cs` with `rename_library` only**
 
-Create `DocRAG.Mcp/Tools/MutationTools.cs`:
+Create `SaddleRAG.Mcp/Tools/MutationTools.cs`:
 
 ```csharp
 // MutationTools.cs
@@ -588,13 +588,13 @@ Create `DocRAG.Mcp/Tools/MutationTools.cs`:
 
 using System.ComponentModel;
 using System.Text.Json;
-using DocRAG.Core.Models;
-using DocRAG.Database.Repositories;
+using SaddleRAG.Core.Models;
+using SaddleRAG.Database.Repositories;
 using ModelContextProtocol.Server;
 
 #endregion
 
-namespace DocRAG.Mcp.Tools;
+namespace SaddleRAG.Mcp.Tools;
 
 /// <summary>
 ///     MCP tools that mutate library state — rename, delete library,
@@ -694,7 +694,7 @@ public static class MutationTools
 
 - [ ] **Step 4: Run the test, expect pass**
 
-Run: `dotnet test DocRAG.slnx --configuration Release --filter "MutationToolsTests.RenameLibrary"`
+Run: `dotnet test SaddleRAG.slnx --configuration Release --filter "MutationToolsTests.RenameLibrary"`
 Expected: PASS for all three rename tests.
 
 - [ ] **Step 5: Commit**
@@ -714,7 +714,7 @@ collision paths.
 ### Task C8: `delete_version` MCP tool
 
 **Files:**
-- Modify: `DocRAG.Mcp/Tools/MutationTools.cs` — add `DeleteVersion` static method
+- Modify: `SaddleRAG.Mcp/Tools/MutationTools.cs` — add `DeleteVersion` static method
 - Test: append to `MutationToolsTests.cs`
 
 - [ ] **Step 1: Write the failing test**
@@ -913,7 +913,7 @@ without writing. ScrapeJobs intentionally retained for audit.
 ### Task C9: `delete_library` MCP tool
 
 **Files:**
-- Modify: `DocRAG.Mcp/Tools/MutationTools.cs` — add `DeleteLibrary`
+- Modify: `SaddleRAG.Mcp/Tools/MutationTools.cs` — add `DeleteLibrary`
 - Test: append to `MutationToolsTests.cs`
 
 - [ ] **Step 1: Write failing test**
@@ -1117,7 +1117,7 @@ returns aggregate counts across all versions without writing.
 ### Task F1: Add `Cancelled = 4` to `ScrapeJobStatus`
 
 **Files:**
-- Modify: `DocRAG.Core/Enums/ScrapeJobStatus.cs`
+- Modify: `SaddleRAG.Core/Enums/ScrapeJobStatus.cs`
 
 - [ ] **Step 1: Add the enum member**
 
@@ -1138,7 +1138,7 @@ Foundation for Track F cancel_scrape support.
 ### Task F2: Add `LastProgressAt` and `CancelledAt` to `ScrapeJobRecord`
 
 **Files:**
-- Modify: `DocRAG.Core/Models/ScrapeJobRecord.cs`
+- Modify: `SaddleRAG.Core/Models/ScrapeJobRecord.cs`
 
 - [ ] **Step 1: Add fields**
 
@@ -1164,7 +1164,7 @@ set when transitioning to ScrapeJobStatus.Cancelled.
 ### Task F3: Add CTS registry to `ScrapeJobRunner` and `CancelAsync`
 
 **Files:**
-- Modify: `DocRAG.Ingestion/ScrapeJobRunner.cs`
+- Modify: `SaddleRAG.Ingestion/ScrapeJobRunner.cs`
 
 - [ ] **Step 1: Add CTS registry field**
 
@@ -1240,7 +1240,7 @@ public enum CancelScrapeOutcome
 }
 ```
 
-If `CancelScrapeOutcome` should live in `DocRAG.Core/Enums/` instead, move it there. Either location is fine; keep it findable from `cancel_scrape` and the runner.
+If `CancelScrapeOutcome` should live in `SaddleRAG.Core/Enums/` instead, move it there. Either location is fine; keep it findable from `cancel_scrape` and the runner.
 
 - [ ] **Step 4: Build clean**
 
@@ -1262,7 +1262,7 @@ user-facing status.
 ### Task F4: Update progress callback to set `LastProgressAt`
 
 **Files:**
-- Modify: `DocRAG.Ingestion/ScrapeJobRunner.cs`
+- Modify: `SaddleRAG.Ingestion/ScrapeJobRunner.cs`
 
 - [ ] **Step 1: Detect counter changes in the progress callback**
 
@@ -1313,21 +1313,21 @@ Running jobs whose LastProgressAt is older than 4 hours.
 ### Task F5: `cancel_scrape` MCP tool
 
 **Files:**
-- Create: `DocRAG.Mcp/Tools/CancellationTools.cs`
-- Test: `DocRAG.Tests/Mcp/CancellationToolsTests.cs`
+- Create: `SaddleRAG.Mcp/Tools/CancellationTools.cs`
+- Test: `SaddleRAG.Tests/Mcp/CancellationToolsTests.cs`
 
 - [ ] **Step 1: Write failing test**
 
-Create `DocRAG.Tests/Mcp/CancellationToolsTests.cs`:
+Create `SaddleRAG.Tests/Mcp/CancellationToolsTests.cs`:
 
 ```csharp
-using DocRAG.Core.Enums;
-using DocRAG.Database.Repositories;
-using DocRAG.Ingestion;
-using DocRAG.Mcp.Tools;
+using SaddleRAG.Core.Enums;
+using SaddleRAG.Database.Repositories;
+using SaddleRAG.Ingestion;
+using SaddleRAG.Mcp.Tools;
 using NSubstitute;
 
-namespace DocRAG.Tests.Mcp;
+namespace SaddleRAG.Tests.Mcp;
 
 public sealed class CancellationToolsTests
 {
@@ -1375,12 +1375,12 @@ var runner = Substitute.ForPartsOf<ScrapeJobRunner>(new object?[] { null, null, 
 
 using System.ComponentModel;
 using System.Text.Json;
-using DocRAG.Ingestion;
+using SaddleRAG.Ingestion;
 using ModelContextProtocol.Server;
 
 #endregion
 
-namespace DocRAG.Mcp.Tools;
+namespace SaddleRAG.Mcp.Tools;
 
 [McpServerToolType]
 public static class CancellationTools
@@ -1441,10 +1441,10 @@ to clear partial results.
 ### Task F6: Add `IngestStatus.InProgress` and surface in `start_ingest`
 
 **Files:**
-- Modify: `DocRAG.Core/Enums/IngestStatus.cs` — add `InProgress`
-- Modify: `DocRAG.Mcp/Tools/IngestTools.cs` — detect active job, return `IN_PROGRESS`
-- Modify: `DocRAG.Core/Interfaces/IScrapeJobRepository.cs` — add `GetActiveJobAsync`
-- Modify: `DocRAG.Database/Repositories/ScrapeJobRepository.cs` — implement `GetActiveJobAsync`
+- Modify: `SaddleRAG.Core/Enums/IngestStatus.cs` — add `InProgress`
+- Modify: `SaddleRAG.Mcp/Tools/IngestTools.cs` — detect active job, return `IN_PROGRESS`
+- Modify: `SaddleRAG.Core/Interfaces/IScrapeJobRepository.cs` — add `GetActiveJobAsync`
+- Modify: `SaddleRAG.Database/Repositories/ScrapeJobRepository.cs` — implement `GetActiveJobAsync`
 
 - [ ] **Step 1: Add enum value**
 
@@ -1511,7 +1511,7 @@ private static IngestStatusResponse MakeInProgress(string library, string versio
 
 - [ ] **Step 4: Build, run start_ingest tests if any**
 
-Run: `dotnet test DocRAG.slnx --configuration Release --filter "IngestTools"`
+Run: `dotnet test SaddleRAG.slnx --configuration Release --filter "IngestTools"`
 Expected: PASS (if tests existed). New behavior is covered by manual MCP exercise; an integration test follows in Task F7.
 
 - [ ] **Step 5: Commit**
@@ -1576,8 +1576,8 @@ values.
 ### Task G1: Add `resume` flag to `scrape_docs`, fold `continue_scrape` behavior
 
 **Files:**
-- Modify: `DocRAG.Mcp/Tools/ScrapeDocsTools.cs` — add resume, change url to optional, factor existing continue_scrape lookup logic into shared helper
-- Test: extend any existing scrape_docs test to cover resume; if no test exists, create `DocRAG.Tests/Mcp/ScrapeDocsToolsTests.cs`
+- Modify: `SaddleRAG.Mcp/Tools/ScrapeDocsTools.cs` — add resume, change url to optional, factor existing continue_scrape lookup logic into shared helper
+- Test: extend any existing scrape_docs test to cover resume; if no test exists, create `SaddleRAG.Tests/Mcp/ScrapeDocsToolsTests.cs`
 
 - [ ] **Step 1: Add resume flag and rewire**
 
@@ -1649,7 +1649,7 @@ removed in the next commit.
 ### Task G2: Remove `continue_scrape`
 
 **Files:**
-- Modify: `DocRAG.Mcp/Tools/ScrapeDocsTools.cs` — delete `ContinueScrape` static method and its constants
+- Modify: `SaddleRAG.Mcp/Tools/ScrapeDocsTools.cs` — delete `ContinueScrape` static method and its constants
 - Update any callers (notably the spec mentions Track E refusal — that moves to scrape_docs(resume=true))
 
 - [ ] **Step 1: Delete the method**
@@ -1673,10 +1673,10 @@ between two near-identical entrypoints.
 ### Task G3: Replace 4 list_* tools with `list_symbols`
 
 **Files:**
-- Modify: `DocRAG.Mcp/Tools/LibraryTools.cs` — remove ListClasses, ListEnums, ListFunctions, ListParameters; add ListSymbols
-- Modify: `DocRAG.Core/Interfaces/IChunkRepository.cs` — add a `GetAllSymbolsAsync` method that returns `IReadOnlyList<Symbol>` for `kind=null` callers
-- Modify: `DocRAG.Database/Repositories/ChunkRepository.cs` — implement
-- Test: `DocRAG.Tests/Mcp/ListSymbolsToolTests.cs`
+- Modify: `SaddleRAG.Mcp/Tools/LibraryTools.cs` — remove ListClasses, ListEnums, ListFunctions, ListParameters; add ListSymbols
+- Modify: `SaddleRAG.Core/Interfaces/IChunkRepository.cs` — add a `GetAllSymbolsAsync` method that returns `IReadOnlyList<Symbol>` for `kind=null` callers
+- Modify: `SaddleRAG.Database/Repositories/ChunkRepository.cs` — implement
+- Test: `SaddleRAG.Tests/Mcp/ListSymbolsToolTests.cs`
 
 - [ ] **Step 1: Add `GetAllSymbolsAsync` to chunk repo**
 
@@ -1716,17 +1716,17 @@ public async Task<IReadOnlyList<Symbol>> GetAllSymbolsAsync(string libraryId, st
 
 - [ ] **Step 2: Write failing test**
 
-`DocRAG.Tests/Mcp/ListSymbolsToolTests.cs`:
+`SaddleRAG.Tests/Mcp/ListSymbolsToolTests.cs`:
 
 ```csharp
-using DocRAG.Core.Enums;
-using DocRAG.Core.Interfaces;
-using DocRAG.Core.Models;
-using DocRAG.Database.Repositories;
-using DocRAG.Mcp.Tools;
+using SaddleRAG.Core.Enums;
+using SaddleRAG.Core.Interfaces;
+using SaddleRAG.Core.Models;
+using SaddleRAG.Database.Repositories;
+using SaddleRAG.Mcp.Tools;
 using NSubstitute;
 
-namespace DocRAG.Tests.Mcp;
+namespace SaddleRAG.Tests.Mcp;
 
 public sealed class ListSymbolsToolTests
 {
@@ -1862,8 +1862,8 @@ mixed-result rendering is unambiguous.
 ### Task G4: Remove `scrape_library` (Track D start)
 
 **Files:**
-- Modify: `DocRAG.Mcp/Tools/IngestionTools.cs` — delete `ScrapeLibrary` method
-- Modify: `DocRAG.Mcp/Tools/IngestTools.cs` — `MakeReadyToScrape` points at `scrape_docs`
+- Modify: `SaddleRAG.Mcp/Tools/IngestionTools.cs` — delete `ScrapeLibrary` method
+- Modify: `SaddleRAG.Mcp/Tools/IngestTools.cs` — `MakeReadyToScrape` points at `scrape_docs`
 
 - [ ] **Step 1: Remove `ScrapeLibrary`**
 
@@ -1892,7 +1892,7 @@ alone.
 ### Task G5: Add `allowedUrlPatterns` / `excludedUrlPatterns` to `scrape_docs`
 
 **Files:**
-- Modify: `DocRAG.Mcp/Tools/ScrapeDocsTools.cs`
+- Modify: `SaddleRAG.Mcp/Tools/ScrapeDocsTools.cs`
 
 - [ ] **Step 1: Add params**
 
@@ -1964,7 +1964,7 @@ LLM when each mode applies.
 ### Task B1: Add `BoundaryIssuePct` to `LibraryVersionRecord`
 
 **Files:**
-- Modify: `DocRAG.Core/Models/LibraryVersionRecord.cs`
+- Modify: `SaddleRAG.Core/Models/LibraryVersionRecord.cs`
 
 - [ ] **Step 1: Add field**
 
@@ -1986,7 +1986,7 @@ get_library_health surfaces this without recomputing chunks.
 ### Task B2: Update `RescrubService` to persist `BoundaryIssuePct`
 
 **Files:**
-- Modify: `DocRAG.Ingestion/Recon/RescrubService.cs`
+- Modify: `SaddleRAG.Ingestion/Recon/RescrubService.cs`
 
 - [ ] **Step 1: Locate the post-rescrub persistence path**
 
@@ -2116,19 +2116,19 @@ payload in start_ingest.
 ### Task B4: Create `HealthTools.cs` with `get_library_health`
 
 **Files:**
-- Create: `DocRAG.Mcp/Tools/HealthTools.cs`
-- Test: `DocRAG.Tests/Mcp/HealthToolsTests.cs`
+- Create: `SaddleRAG.Mcp/Tools/HealthTools.cs`
+- Test: `SaddleRAG.Tests/Mcp/HealthToolsTests.cs`
 
 - [ ] **Step 1: Write failing test**
 
 ```csharp
-using DocRAG.Core.Interfaces;
-using DocRAG.Core.Models;
-using DocRAG.Database.Repositories;
-using DocRAG.Mcp.Tools;
+using SaddleRAG.Core.Interfaces;
+using SaddleRAG.Core.Models;
+using SaddleRAG.Database.Repositories;
+using SaddleRAG.Mcp.Tools;
 using NSubstitute;
 
-namespace DocRAG.Tests.Mcp;
+namespace SaddleRAG.Tests.Mcp;
 
 public sealed class HealthToolsTests
 {
@@ -2188,13 +2188,13 @@ public sealed class HealthToolsTests
 
 using System.ComponentModel;
 using System.Text.Json;
-using DocRAG.Core.Models;
-using DocRAG.Database.Repositories;
+using SaddleRAG.Core.Models;
+using SaddleRAG.Database.Repositories;
 using ModelContextProtocol.Server;
 
 #endregion
 
-namespace DocRAG.Mcp.Tools;
+namespace SaddleRAG.Mcp.Tools;
 
 [McpServerToolType]
 public static class HealthTools
@@ -2297,8 +2297,8 @@ fields are wired in (defaults until Track E populates them).
 ### Task E1: Add Suspect fields to `LibraryVersionRecord` and `IngestStatus.UrlSuspect`
 
 **Files:**
-- Modify: `DocRAG.Core/Models/LibraryVersionRecord.cs` — add three fields (may already be there from B4 if implemented strictly in order)
-- Modify: `DocRAG.Core/Enums/IngestStatus.cs` — add `UrlSuspect`
+- Modify: `SaddleRAG.Core/Models/LibraryVersionRecord.cs` — add three fields (may already be there from B4 if implemented strictly in order)
+- Modify: `SaddleRAG.Core/Enums/IngestStatus.cs` — add `UrlSuspect`
 
 - [ ] **Step 1: Ensure fields**
 
@@ -2386,15 +2386,15 @@ submit_url_correction when re-rooting a scrape.
 ### Task E3: Implement `SuspectDetector`
 
 **Files:**
-- Create: `DocRAG.Ingestion/Suspect/SuspectReason.cs`
-- Create: `DocRAG.Ingestion/Suspect/SuspectDetector.cs`
-- Test: `DocRAG.Tests/Suspect/SuspectDetectorTests.cs`
+- Create: `SaddleRAG.Ingestion/Suspect/SuspectReason.cs`
+- Create: `SaddleRAG.Ingestion/Suspect/SuspectDetector.cs`
+- Test: `SaddleRAG.Tests/Suspect/SuspectDetectorTests.cs`
 
 - [ ] **Step 1: String constants**
 
 ```csharp
 // SuspectReason.cs
-namespace DocRAG.Ingestion.Suspect;
+namespace SaddleRAG.Ingestion.Suspect;
 
 public static class SuspectReason
 {
@@ -2410,10 +2410,10 @@ public static class SuspectReason
 
 ```csharp
 // SuspectDetector.cs
-using DocRAG.Core.Interfaces;
-using DocRAG.Core.Models;
+using SaddleRAG.Core.Interfaces;
+using SaddleRAG.Core.Models;
 
-namespace DocRAG.Ingestion.Suspect;
+namespace SaddleRAG.Ingestion.Suspect;
 
 public sealed class SuspectDetector
 {
@@ -2466,9 +2466,9 @@ public sealed class SuspectDetector
 - [ ] **Step 3: Tests**
 
 ```csharp
-using DocRAG.Ingestion.Suspect;
+using SaddleRAG.Ingestion.Suspect;
 
-namespace DocRAG.Tests.Suspect;
+namespace SaddleRAG.Tests.Suspect;
 
 public sealed class SuspectDetectorTests
 {
@@ -2536,7 +2536,7 @@ ingestion orchestrator in the next commit.
 ### Task E4: Hook `SuspectDetector` into `IngestionOrchestrator.UpdateLibraryMetadataAsync`
 
 **Files:**
-- Modify: `DocRAG.Ingestion/IngestionOrchestrator.cs`
+- Modify: `SaddleRAG.Ingestion/IngestionOrchestrator.cs`
 
 - [ ] **Step 1: Inject `SuspectDetector` and `IChunkRepository` into orchestrator constructor**
 
@@ -2595,7 +2595,7 @@ heuristics now fire automatically at the close of every scrape.
 ### Task E5: Refuse `scrape_docs(resume=true)` on suspect libraries
 
 **Files:**
-- Modify: `DocRAG.Mcp/Tools/ScrapeDocsTools.cs`
+- Modify: `SaddleRAG.Mcp/Tools/ScrapeDocsTools.cs`
 
 - [ ] **Step 1: Lookup `LibraryVersionRecord.Suspect` and refuse**
 
@@ -2632,8 +2632,8 @@ suspect flag and re-queues against a corrected URL.
 ### Task E6: `submit_url_correction` MCP tool
 
 **Files:**
-- Create: `DocRAG.Mcp/Tools/UrlCorrectionTools.cs`
-- Test: `DocRAG.Tests/Mcp/UrlCorrectionToolsTests.cs`
+- Create: `SaddleRAG.Mcp/Tools/UrlCorrectionTools.cs`
+- Test: `SaddleRAG.Tests/Mcp/UrlCorrectionToolsTests.cs`
 
 - [ ] **Step 1: Test (failing)**
 
@@ -2787,7 +2787,7 @@ the URL is wrong.
 ### Task E7: Wire `URL_SUSPECT` into `start_ingest`
 
 **Files:**
-- Modify: `DocRAG.Mcp/Tools/IngestTools.cs`
+- Modify: `SaddleRAG.Mcp/Tools/IngestTools.cs`
 
 - [ ] **Step 1: Lookup `LibraryVersionRecord.Suspect` and add a higher-precedence branch**
 
@@ -2848,7 +2848,7 @@ nextTool.
 ### Task E8: Add `BoundaryHint` to `rescrub_library` output
 
 **Files:**
-- Modify: `DocRAG.Mcp/Tools/RescrubTools.cs`
+- Modify: `SaddleRAG.Mcp/Tools/RescrubTools.cs`
 
 - [ ] **Step 1: Wrap result with hint**
 
@@ -2890,7 +2890,7 @@ tools.
 ### Task A1: `list_libraries` empty-state hint
 
 **Files:**
-- Modify: `DocRAG.Mcp/Tools/LibraryTools.cs`
+- Modify: `SaddleRAG.Mcp/Tools/LibraryTools.cs`
 
 - [ ] **Step 1: Wrap empty result**
 
@@ -2936,7 +2936,7 @@ preserved.
 ### Task A2: `get_dashboard_index` MCP tool
 
 **Files:**
-- Modify: `DocRAG.Mcp/Tools/HealthTools.cs` — add `GetDashboardIndex`
+- Modify: `SaddleRAG.Mcp/Tools/HealthTools.cs` — add `GetDashboardIndex`
 - Test: append to `HealthToolsTests.cs`
 
 - [ ] **Step 1: Test (failing)**
@@ -3009,7 +3009,7 @@ public async Task GetDashboardIndex_PopulatedDb_AggregatesAcrossLibraries()
 
 ```csharp
 [McpServerTool(Name = "get_dashboard_index")]
-[Description("Single-call DocRAG status overview. Returns library/version counts, " +
+[Description("Single-call SaddleRAG status overview. Returns library/version counts, " +
              "recent scrape jobs (with stale-running flags), suspect/stale library " +
              "lists (capped at 20), and a SuggestedNextAction. The documented entry " +
              "point for fresh sessions."
@@ -3109,12 +3109,12 @@ when list_libraries returns empty.
 
 - [ ] **Step 1: Full warning-free build**
 
-Run: `dotnet build DocRAG.slnx --configuration Release -p:TreatWarningsAsErrors=true`
+Run: `dotnet build SaddleRAG.slnx --configuration Release -p:TreatWarningsAsErrors=true`
 Expected: SUCCESS, zero warnings.
 
 - [ ] **Step 2: Full test run**
 
-Run: `dotnet test DocRAG.slnx --configuration Release --no-build`
+Run: `dotnet test SaddleRAG.slnx --configuration Release --no-build`
 Expected: ALL TESTS PASS.
 
 - [ ] **Step 3: Manual smoke via MCP server**

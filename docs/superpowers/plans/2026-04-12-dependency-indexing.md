@@ -17,13 +17,13 @@
 ## Task 1: Core Interfaces and Models
 
 **Files:**
-- Create: `DocRAG.Core/Interfaces/IProjectFileParser.cs`
-- Create: `DocRAG.Core/Interfaces/IPackageRegistryClient.cs`
-- Create: `DocRAG.Core/Interfaces/IDocUrlResolver.cs`
-- Create: `DocRAG.Core/Models/PackageDependency.cs`
-- Create: `DocRAG.Core/Models/PackageMetadata.cs`
-- Create: `DocRAG.Core/Models/DocUrlResolution.cs`
-- Create: `DocRAG.Core/Models/DependencyIndexReport.cs`
+- Create: `SaddleRAG.Core/Interfaces/IProjectFileParser.cs`
+- Create: `SaddleRAG.Core/Interfaces/IPackageRegistryClient.cs`
+- Create: `SaddleRAG.Core/Interfaces/IDocUrlResolver.cs`
+- Create: `SaddleRAG.Core/Models/PackageDependency.cs`
+- Create: `SaddleRAG.Core/Models/PackageMetadata.cs`
+- Create: `SaddleRAG.Core/Models/DocUrlResolution.cs`
+- Create: `SaddleRAG.Core/Models/DependencyIndexReport.cs`
 
 - [ ] **Step 1: Create PackageDependency model**
 
@@ -31,7 +31,7 @@
 // PackageDependency.cs
 // Copyright (c) Jackalope Technologies, Inc. All rights reserved.
 
-namespace DocRAG.Core.Models;
+namespace SaddleRAG.Core.Models;
 
 /// <summary>
 ///     A single package dependency discovered from a project file.
@@ -62,7 +62,7 @@ public record PackageDependency
 // PackageMetadata.cs
 // Copyright (c) Jackalope Technologies, Inc. All rights reserved.
 
-namespace DocRAG.Core.Models;
+namespace SaddleRAG.Core.Models;
 
 /// <summary>
 ///     Metadata fetched from a package registry for documentation resolution.
@@ -112,9 +112,9 @@ public record PackageMetadata
 // DocUrlResolution.cs
 // Copyright (c) Jackalope Technologies, Inc. All rights reserved.
 
-using DocRAG.Core.Enums;
+using SaddleRAG.Core.Enums;
 
-namespace DocRAG.Core.Models;
+namespace SaddleRAG.Core.Models;
 
 /// <summary>
 ///     Result of resolving a package to its documentation URL.
@@ -144,7 +144,7 @@ public record DocUrlResolution
 // DependencyIndexReport.cs
 // Copyright (c) Jackalope Technologies, Inc. All rights reserved.
 
-namespace DocRAG.Core.Models;
+namespace SaddleRAG.Core.Models;
 
 /// <summary>
 ///     Report returned by the dependency indexing pipeline.
@@ -247,9 +247,9 @@ public record PackageIndexStatus
 // IProjectFileParser.cs
 // Copyright (c) Jackalope Technologies, Inc. All rights reserved.
 
-using DocRAG.Core.Models;
+using SaddleRAG.Core.Models;
 
-namespace DocRAG.Core.Interfaces;
+namespace SaddleRAG.Core.Interfaces;
 
 /// <summary>
 ///     Parses a project file to discover package dependencies for a specific ecosystem.
@@ -278,9 +278,9 @@ public interface IProjectFileParser
 // IPackageRegistryClient.cs
 // Copyright (c) Jackalope Technologies, Inc. All rights reserved.
 
-using DocRAG.Core.Models;
+using SaddleRAG.Core.Models;
 
-namespace DocRAG.Core.Interfaces;
+namespace SaddleRAG.Core.Interfaces;
 
 /// <summary>
 ///     Fetches package metadata from an ecosystem's package registry.
@@ -305,9 +305,9 @@ public interface IPackageRegistryClient
 // IDocUrlResolver.cs
 // Copyright (c) Jackalope Technologies, Inc. All rights reserved.
 
-using DocRAG.Core.Models;
+using SaddleRAG.Core.Models;
 
-namespace DocRAG.Core.Interfaces;
+namespace SaddleRAG.Core.Interfaces;
 
 /// <summary>
 ///     Resolves package metadata into a scrapable documentation URL.
@@ -326,15 +326,15 @@ public interface IDocUrlResolver
 }
 ```
 
-- [ ] **Step 6: Build DocRAG.Core and verify**
+- [ ] **Step 6: Build SaddleRAG.Core and verify**
 
-Run: `dotnet build E:/Projects/RAG/DocRAG.Core/DocRAG.Core.csproj`
+Run: `dotnet build E:/Projects/RAG/SaddleRAG.Core/SaddleRAG.Core.csproj`
 Expected: Build succeeded, 0 warnings, 0 errors
 
 - [ ] **Step 7: Commit**
 
 ```
-git add DocRAG.Core/Interfaces/IProjectFileParser.cs DocRAG.Core/Interfaces/IPackageRegistryClient.cs DocRAG.Core/Interfaces/IDocUrlResolver.cs DocRAG.Core/Models/PackageDependency.cs DocRAG.Core/Models/PackageMetadata.cs DocRAG.Core/Models/DocUrlResolution.cs DocRAG.Core/Models/DependencyIndexReport.cs
+git add SaddleRAG.Core/Interfaces/IProjectFileParser.cs SaddleRAG.Core/Interfaces/IPackageRegistryClient.cs SaddleRAG.Core/Interfaces/IDocUrlResolver.cs SaddleRAG.Core/Models/PackageDependency.cs SaddleRAG.Core/Models/PackageMetadata.cs SaddleRAG.Core/Models/DocUrlResolution.cs SaddleRAG.Core/Models/DependencyIndexReport.cs
 ```
 Message: `Add core interfaces and models for dependency indexing pipeline`
 
@@ -343,12 +343,12 @@ Message: `Add core interfaces and models for dependency indexing pipeline`
 ## Task 2: 3-Tier Crawl Depth Model
 
 **Files:**
-- Modify: `DocRAG.Core/Models/ScrapeJob.cs`
-- Modify: `DocRAG.Ingestion/Crawling/PageCrawler.cs`
+- Modify: `SaddleRAG.Core/Models/ScrapeJob.cs`
+- Modify: `SaddleRAG.Ingestion/Crawling/PageCrawler.cs`
 
 - [ ] **Step 1: Update ScrapeJob with new depth fields**
 
-In `DocRAG.Core/Models/ScrapeJob.cs`, replace `OutOfScopeMaxDepth` with two new fields:
+In `SaddleRAG.Core/Models/ScrapeJob.cs`, replace `OutOfScopeMaxDepth` with two new fields:
 
 ```csharp
 /// <summary>
@@ -434,12 +434,12 @@ private static bool IsSameHost(string url, RootScope scope)
 - [ ] **Step 3: Update all callers of OutOfScopeMaxDepth**
 
 Grep for `OutOfScopeMaxDepth` across the codebase and update:
-- `DocRAG.Mcp/Tools/IngestionTools.cs` — the `dryrun_scrape` and `scrape_library` tools reference this field. Update parameter names and mapping.
-- `DocRAG.Cli/Program.cs` — if it references `OutOfScopeMaxDepth`, update.
+- `SaddleRAG.Mcp/Tools/IngestionTools.cs` — the `dryrun_scrape` and `scrape_library` tools reference this field. Update parameter names and mapping.
+- `SaddleRAG.Cli/Program.cs` — if it references `OutOfScopeMaxDepth`, update.
 
 - [ ] **Step 4: Build and verify**
 
-Run: `dotnet build E:/Projects/RAG/DocRAG.slnx`
+Run: `dotnet build E:/Projects/RAG/SaddleRAG.slnx`
 Expected: Build succeeded, 0 warnings, 0 errors
 
 - [ ] **Step 5: Commit**
@@ -451,8 +451,8 @@ Message: `Replace OutOfScopeMaxDepth with 3-tier depth model (SameHostDepth + Of
 ## Task 3: ScrapeJobFactory and scrape_docs Tool
 
 **Files:**
-- Create: `DocRAG.Ingestion/Scanning/ScrapeJobFactory.cs`
-- Create: `DocRAG.Mcp/Tools/ScrapeDocsTools.cs`
+- Create: `SaddleRAG.Ingestion/Scanning/ScrapeJobFactory.cs`
+- Create: `SaddleRAG.Mcp/Tools/ScrapeDocsTools.cs`
 
 - [ ] **Step 1: Create ScrapeJobFactory**
 
@@ -460,10 +460,10 @@ Message: `Replace OutOfScopeMaxDepth with 3-tier depth model (SameHostDepth + Of
 // ScrapeJobFactory.cs
 // Copyright (c) Jackalope Technologies, Inc. All rights reserved.
 
-using DocRAG.Core.Models;
-using DocRAG.Ingestion.Crawling;
+using SaddleRAG.Core.Models;
+using SaddleRAG.Ingestion.Crawling;
 
-namespace DocRAG.Ingestion.Scanning;
+namespace SaddleRAG.Ingestion.Scanning;
 
 /// <summary>
 ///     Creates ScrapeJob instances from a URL with sensible auto-derived defaults.
@@ -521,12 +521,12 @@ public static class ScrapeJobFactory
 
 using System.ComponentModel;
 using System.Text.Json;
-using DocRAG.Database.Repositories;
-using DocRAG.Ingestion;
-using DocRAG.Ingestion.Scanning;
+using SaddleRAG.Database.Repositories;
+using SaddleRAG.Ingestion;
+using SaddleRAG.Ingestion.Scanning;
 using ModelContextProtocol.Server;
 
-namespace DocRAG.Mcp.Tools;
+namespace SaddleRAG.Mcp.Tools;
 
 /// <summary>
 ///     MCP tools for simplified documentation scraping and dependency indexing.
@@ -612,9 +612,9 @@ public static class ScrapeDocsTools
 
 - [ ] **Step 3: Build and verify**
 
-Run: `dotnet build E:/Projects/RAG/DocRAG.slnx`
+Run: `dotnet build E:/Projects/RAG/SaddleRAG.slnx`
 Expected: Fails because `DependencyIndexer` doesn't exist yet. That's fine — it will compile once Task 8 is done. Verify `ScrapeJobFactory` compiles by building Ingestion alone:
-Run: `dotnet build E:/Projects/RAG/DocRAG.Ingestion/DocRAG.Ingestion.csproj`
+Run: `dotnet build E:/Projects/RAG/SaddleRAG.Ingestion/SaddleRAG.Ingestion.csproj`
 
 - [ ] **Step 4: Commit**
 
@@ -625,8 +625,8 @@ Message: `Add ScrapeJobFactory and scrape_docs/index_project_dependencies MCP to
 ## Task 4: PackageFilter (Shared Skip Lists)
 
 **Files:**
-- Create: `DocRAG.Ingestion/Scanning/PackageFilter.cs`
-- Delete: `DocRAG.Ingestion/Scanning/ProjectScanner.cs`
+- Create: `SaddleRAG.Ingestion/Scanning/PackageFilter.cs`
+- Delete: `SaddleRAG.Ingestion/Scanning/ProjectScanner.cs`
 
 - [ ] **Step 1: Create PackageFilter**
 
@@ -634,9 +634,9 @@ Message: `Add ScrapeJobFactory and scrape_docs/index_project_dependencies MCP to
 // PackageFilter.cs
 // Copyright (c) Jackalope Technologies, Inc. All rights reserved.
 
-using DocRAG.Core.Models;
+using SaddleRAG.Core.Models;
 
-namespace DocRAG.Ingestion.Scanning;
+namespace SaddleRAG.Ingestion.Scanning;
 
 /// <summary>
 ///     Filters out framework, tooling, and test packages that don't need
@@ -695,24 +695,24 @@ public class PackageFilter
 
 - [ ] **Step 2: Delete ProjectScanner.cs**
 
-Run: `rm E:/Projects/RAG/DocRAG.Ingestion/Scanning/ProjectScanner.cs`
+Run: `rm E:/Projects/RAG/SaddleRAG.Ingestion/Scanning/ProjectScanner.cs`
 
 - [ ] **Step 3: Delete ProjectTools.cs**
 
-Run: `rm E:/Projects/RAG/DocRAG.Mcp/Tools/ProjectTools.cs`
+Run: `rm E:/Projects/RAG/SaddleRAG.Mcp/Tools/ProjectTools.cs`
 
 The `scan_project` MCP tool is superseded by `index_project_dependencies` in `ScrapeDocsTools.cs`.
 
 - [ ] **Step 4: Remove ProjectScanner and ProjectTools registrations from Program.cs**
 
-In `DocRAG.Mcp/Program.cs`, remove:
+In `SaddleRAG.Mcp/Program.cs`, remove:
 ```csharp
 builder.Services.AddSingleton<ProjectScanner>();
 ```
 
 - [ ] **Step 5: Build and verify**
 
-Run: `dotnet build E:/Projects/RAG/DocRAG.Ingestion/DocRAG.Ingestion.csproj`
+Run: `dotnet build E:/Projects/RAG/SaddleRAG.Ingestion/SaddleRAG.Ingestion.csproj`
 Expected: Build succeeded (Mcp will still fail until DependencyIndexer exists)
 
 - [ ] **Step 6: Commit**
@@ -724,10 +724,10 @@ Message: `Add PackageFilter, remove ProjectScanner and scan_project tool`
 ## Task 5: NuGet Ecosystem Implementation
 
 **Files:**
-- Create: `DocRAG.Ingestion/Ecosystems/NuGet/NuGetProjectFileParser.cs`
-- Create: `DocRAG.Ingestion/Ecosystems/NuGet/NuGetRegistryClient.cs`
-- Create: `DocRAG.Ingestion/Ecosystems/NuGet/NuGetDocUrlResolver.cs`
-- Create: `DocRAG.Ingestion/Ecosystems/Common/CommonDocUrlPatterns.cs`
+- Create: `SaddleRAG.Ingestion/Ecosystems/NuGet/NuGetProjectFileParser.cs`
+- Create: `SaddleRAG.Ingestion/Ecosystems/NuGet/NuGetRegistryClient.cs`
+- Create: `SaddleRAG.Ingestion/Ecosystems/NuGet/NuGetDocUrlResolver.cs`
+- Create: `SaddleRAG.Ingestion/Ecosystems/Common/CommonDocUrlPatterns.cs`
 
 - [ ] **Step 1: Create CommonDocUrlPatterns (shared fallback logic)**
 
@@ -736,11 +736,11 @@ Message: `Add PackageFilter, remove ProjectScanner and scan_project tool`
 // Copyright (c) Jackalope Technologies, Inc. All rights reserved.
 
 using System.Text.RegularExpressions;
-using DocRAG.Core.Enums;
-using DocRAG.Core.Models;
+using SaddleRAG.Core.Enums;
+using SaddleRAG.Core.Models;
 using Microsoft.Extensions.Logging;
 
-namespace DocRAG.Ingestion.Ecosystems.Common;
+namespace SaddleRAG.Ingestion.Ecosystems.Common;
 
 /// <summary>
 ///     Shared documentation URL resolution fallback patterns.
@@ -850,11 +850,11 @@ Refactored from existing `ProjectScanner`. Same `.sln`/`.csproj` parsing logic, 
 
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
-using DocRAG.Core.Interfaces;
-using DocRAG.Core.Models;
+using SaddleRAG.Core.Interfaces;
+using SaddleRAG.Core.Models;
 using Microsoft.Extensions.Logging;
 
-namespace DocRAG.Ingestion.Ecosystems.NuGet;
+namespace SaddleRAG.Ingestion.Ecosystems.NuGet;
 
 /// <summary>
 ///     Parses .NET project files (.sln, .slnx, .csproj) to discover NuGet dependencies.
@@ -982,11 +982,11 @@ public class NuGetProjectFileParser : IProjectFileParser
 // Copyright (c) Jackalope Technologies, Inc. All rights reserved.
 
 using System.Text.Json;
-using DocRAG.Core.Interfaces;
-using DocRAG.Core.Models;
+using SaddleRAG.Core.Interfaces;
+using SaddleRAG.Core.Models;
 using Microsoft.Extensions.Logging;
 
-namespace DocRAG.Ingestion.Ecosystems.NuGet;
+namespace SaddleRAG.Ingestion.Ecosystems.NuGet;
 
 /// <summary>
 ///     Fetches package metadata from the NuGet v3 registration API.
@@ -1073,13 +1073,13 @@ public class NuGetRegistryClient : IPackageRegistryClient
 // NuGetDocUrlResolver.cs
 // Copyright (c) Jackalope Technologies, Inc. All rights reserved.
 
-using DocRAG.Core.Enums;
-using DocRAG.Core.Interfaces;
-using DocRAG.Core.Models;
-using DocRAG.Ingestion.Ecosystems.Common;
+using SaddleRAG.Core.Enums;
+using SaddleRAG.Core.Interfaces;
+using SaddleRAG.Core.Models;
+using SaddleRAG.Ingestion.Ecosystems.Common;
 using Microsoft.Extensions.Logging;
 
-namespace DocRAG.Ingestion.Ecosystems.NuGet;
+namespace SaddleRAG.Ingestion.Ecosystems.NuGet;
 
 /// <summary>
 ///     Resolves NuGet package metadata into a documentation URL.
@@ -1179,7 +1179,7 @@ public class NuGetDocUrlResolver : IDocUrlResolver
 
 - [ ] **Step 5: Build and verify**
 
-Run: `dotnet build E:/Projects/RAG/DocRAG.Ingestion/DocRAG.Ingestion.csproj`
+Run: `dotnet build E:/Projects/RAG/SaddleRAG.Ingestion/SaddleRAG.Ingestion.csproj`
 Expected: Build succeeded
 
 - [ ] **Step 6: Commit**
@@ -1191,9 +1191,9 @@ Message: `Add NuGet ecosystem (parser, registry client, doc resolver) and Common
 ## Task 6: npm Ecosystem Implementation
 
 **Files:**
-- Create: `DocRAG.Ingestion/Ecosystems/Npm/NpmProjectFileParser.cs`
-- Create: `DocRAG.Ingestion/Ecosystems/Npm/NpmRegistryClient.cs`
-- Create: `DocRAG.Ingestion/Ecosystems/Npm/NpmDocUrlResolver.cs`
+- Create: `SaddleRAG.Ingestion/Ecosystems/Npm/NpmProjectFileParser.cs`
+- Create: `SaddleRAG.Ingestion/Ecosystems/Npm/NpmRegistryClient.cs`
+- Create: `SaddleRAG.Ingestion/Ecosystems/Npm/NpmDocUrlResolver.cs`
 
 - [ ] **Step 1: Create NpmProjectFileParser**
 
@@ -1202,11 +1202,11 @@ Message: `Add NuGet ecosystem (parser, registry client, doc resolver) and Common
 // Copyright (c) Jackalope Technologies, Inc. All rights reserved.
 
 using System.Text.Json;
-using DocRAG.Core.Interfaces;
-using DocRAG.Core.Models;
+using SaddleRAG.Core.Interfaces;
+using SaddleRAG.Core.Models;
 using Microsoft.Extensions.Logging;
 
-namespace DocRAG.Ingestion.Ecosystems.Npm;
+namespace SaddleRAG.Ingestion.Ecosystems.Npm;
 
 /// <summary>
 ///     Parses package.json files to discover npm dependencies.
@@ -1286,11 +1286,11 @@ public class NpmProjectFileParser : IProjectFileParser
 // Copyright (c) Jackalope Technologies, Inc. All rights reserved.
 
 using System.Text.Json;
-using DocRAG.Core.Interfaces;
-using DocRAG.Core.Models;
+using SaddleRAG.Core.Interfaces;
+using SaddleRAG.Core.Models;
 using Microsoft.Extensions.Logging;
 
-namespace DocRAG.Ingestion.Ecosystems.Npm;
+namespace SaddleRAG.Ingestion.Ecosystems.Npm;
 
 /// <summary>
 ///     Fetches package metadata from the npm registry.
@@ -1388,13 +1388,13 @@ public class NpmRegistryClient : IPackageRegistryClient
 // NpmDocUrlResolver.cs
 // Copyright (c) Jackalope Technologies, Inc. All rights reserved.
 
-using DocRAG.Core.Enums;
-using DocRAG.Core.Interfaces;
-using DocRAG.Core.Models;
-using DocRAG.Ingestion.Ecosystems.Common;
+using SaddleRAG.Core.Enums;
+using SaddleRAG.Core.Interfaces;
+using SaddleRAG.Core.Models;
+using SaddleRAG.Ingestion.Ecosystems.Common;
 using Microsoft.Extensions.Logging;
 
-namespace DocRAG.Ingestion.Ecosystems.Npm;
+namespace SaddleRAG.Ingestion.Ecosystems.Npm;
 
 /// <summary>
 ///     Resolves npm package metadata into a documentation URL.
@@ -1469,7 +1469,7 @@ public class NpmDocUrlResolver : IDocUrlResolver
 
 - [ ] **Step 4: Build and verify**
 
-Run: `dotnet build E:/Projects/RAG/DocRAG.Ingestion/DocRAG.Ingestion.csproj`
+Run: `dotnet build E:/Projects/RAG/SaddleRAG.Ingestion/SaddleRAG.Ingestion.csproj`
 
 - [ ] **Step 5: Commit**
 
@@ -1480,9 +1480,9 @@ Message: `Add npm ecosystem (parser, registry client, doc resolver)`
 ## Task 7: pip Ecosystem Implementation
 
 **Files:**
-- Create: `DocRAG.Ingestion/Ecosystems/Pip/PipProjectFileParser.cs`
-- Create: `DocRAG.Ingestion/Ecosystems/Pip/PyPiRegistryClient.cs`
-- Create: `DocRAG.Ingestion/Ecosystems/Pip/PipDocUrlResolver.cs`
+- Create: `SaddleRAG.Ingestion/Ecosystems/Pip/PipProjectFileParser.cs`
+- Create: `SaddleRAG.Ingestion/Ecosystems/Pip/PyPiRegistryClient.cs`
+- Create: `SaddleRAG.Ingestion/Ecosystems/Pip/PipDocUrlResolver.cs`
 
 - [ ] **Step 1: Create PipProjectFileParser**
 
@@ -1491,11 +1491,11 @@ Message: `Add npm ecosystem (parser, registry client, doc resolver)`
 // Copyright (c) Jackalope Technologies, Inc. All rights reserved.
 
 using System.Text.RegularExpressions;
-using DocRAG.Core.Interfaces;
-using DocRAG.Core.Models;
+using SaddleRAG.Core.Interfaces;
+using SaddleRAG.Core.Models;
 using Microsoft.Extensions.Logging;
 
-namespace DocRAG.Ingestion.Ecosystems.Pip;
+namespace SaddleRAG.Ingestion.Ecosystems.Pip;
 
 /// <summary>
 ///     Parses requirements.txt and pyproject.toml to discover pip dependencies.
@@ -1629,11 +1629,11 @@ public class PipProjectFileParser : IProjectFileParser
 // Copyright (c) Jackalope Technologies, Inc. All rights reserved.
 
 using System.Text.Json;
-using DocRAG.Core.Interfaces;
-using DocRAG.Core.Models;
+using SaddleRAG.Core.Interfaces;
+using SaddleRAG.Core.Models;
 using Microsoft.Extensions.Logging;
 
-namespace DocRAG.Ingestion.Ecosystems.Pip;
+namespace SaddleRAG.Ingestion.Ecosystems.Pip;
 
 /// <summary>
 ///     Fetches package metadata from the PyPI JSON API.
@@ -1736,13 +1736,13 @@ public class PyPiRegistryClient : IPackageRegistryClient
 // PipDocUrlResolver.cs
 // Copyright (c) Jackalope Technologies, Inc. All rights reserved.
 
-using DocRAG.Core.Enums;
-using DocRAG.Core.Interfaces;
-using DocRAG.Core.Models;
-using DocRAG.Ingestion.Ecosystems.Common;
+using SaddleRAG.Core.Enums;
+using SaddleRAG.Core.Interfaces;
+using SaddleRAG.Core.Models;
+using SaddleRAG.Ingestion.Ecosystems.Common;
 using Microsoft.Extensions.Logging;
 
-namespace DocRAG.Ingestion.Ecosystems.Pip;
+namespace SaddleRAG.Ingestion.Ecosystems.Pip;
 
 /// <summary>
 ///     Resolves PyPI package metadata into a documentation URL.
@@ -1837,7 +1837,7 @@ public class PipDocUrlResolver : IDocUrlResolver
 
 - [ ] **Step 4: Build and verify**
 
-Run: `dotnet build E:/Projects/RAG/DocRAG.Ingestion/DocRAG.Ingestion.csproj`
+Run: `dotnet build E:/Projects/RAG/SaddleRAG.Ingestion/SaddleRAG.Ingestion.csproj`
 
 - [ ] **Step 5: Commit**
 
@@ -1848,7 +1848,7 @@ Message: `Add pip ecosystem (parser, PyPI registry client, doc resolver)`
 ## Task 8: DependencyIndexer Orchestrator
 
 **Files:**
-- Create: `DocRAG.Ingestion/Scanning/DependencyIndexer.cs`
+- Create: `SaddleRAG.Ingestion/Scanning/DependencyIndexer.cs`
 
 - [ ] **Step 1: Create DependencyIndexer**
 
@@ -1856,13 +1856,13 @@ Message: `Add pip ecosystem (parser, PyPI registry client, doc resolver)`
 // DependencyIndexer.cs
 // Copyright (c) Jackalope Technologies, Inc. All rights reserved.
 
-using DocRAG.Core.Enums;
-using DocRAG.Core.Interfaces;
-using DocRAG.Core.Models;
-using DocRAG.Database.Repositories;
+using SaddleRAG.Core.Enums;
+using SaddleRAG.Core.Interfaces;
+using SaddleRAG.Core.Models;
+using SaddleRAG.Database.Repositories;
 using Microsoft.Extensions.Logging;
 
-namespace DocRAG.Ingestion.Scanning;
+namespace SaddleRAG.Ingestion.Scanning;
 
 /// <summary>
 ///     Orchestrates the full dependency indexing pipeline:
@@ -2197,7 +2197,7 @@ public class DependencyIndexer
 
 - [ ] **Step 2: Build and verify**
 
-Run: `dotnet build E:/Projects/RAG/DocRAG.Ingestion/DocRAG.Ingestion.csproj`
+Run: `dotnet build E:/Projects/RAG/SaddleRAG.Ingestion/SaddleRAG.Ingestion.csproj`
 
 - [ ] **Step 3: Commit**
 
@@ -2208,7 +2208,7 @@ Message: `Add DependencyIndexer orchestrator for scan-resolve-scrape pipeline`
 ## Task 9: Search Tool Consolidation
 
 **Files:**
-- Modify: `DocRAG.Mcp/Tools/SearchTools.cs`
+- Modify: `SaddleRAG.Mcp/Tools/SearchTools.cs`
 
 - [ ] **Step 1: Update search_docs description, remove get_samples and get_howto, add get_library_overview**
 
@@ -2279,7 +2279,7 @@ public static async Task<string> GetLibraryOverview(
 
 - [ ] **Step 2: Build and verify**
 
-Run: `dotnet build E:/Projects/RAG/DocRAG.Mcp/DocRAG.Mcp.csproj`
+Run: `dotnet build E:/Projects/RAG/SaddleRAG.Mcp/SaddleRAG.Mcp.csproj`
 
 - [ ] **Step 3: Commit**
 
@@ -2290,12 +2290,12 @@ Message: `Consolidate search tools: remove get_samples/get_howto, add get_librar
 ## Task 10: DI Registration and Final Wiring
 
 **Files:**
-- Modify: `DocRAG.Mcp/Program.cs`
-- Modify: `DocRAG.Cli/Program.cs` (if it references removed types)
+- Modify: `SaddleRAG.Mcp/Program.cs`
+- Modify: `SaddleRAG.Cli/Program.cs` (if it references removed types)
 
 - [ ] **Step 1: Update Program.cs DI registrations**
 
-In `DocRAG.Mcp/Program.cs`, add after the existing service registrations:
+In `SaddleRAG.Mcp/Program.cs`, add after the existing service registrations:
 
 ```csharp
 // HTTP clients for registry APIs
@@ -2305,49 +2305,49 @@ builder.Services.AddHttpClient("PyPI");
 builder.Services.AddHttpClient("DocUrlProbe");
 
 // Shared utilities
-builder.Services.AddSingleton<DocRAG.Ingestion.Ecosystems.Common.CommonDocUrlPatterns>();
-builder.Services.AddSingleton<DocRAG.Ingestion.Scanning.PackageFilter>();
+builder.Services.AddSingleton<SaddleRAG.Ingestion.Ecosystems.Common.CommonDocUrlPatterns>();
+builder.Services.AddSingleton<SaddleRAG.Ingestion.Scanning.PackageFilter>();
 
 // NuGet ecosystem
-builder.Services.AddSingleton<IProjectFileParser, DocRAG.Ingestion.Ecosystems.NuGet.NuGetProjectFileParser>();
-builder.Services.AddSingleton<IPackageRegistryClient, DocRAG.Ingestion.Ecosystems.NuGet.NuGetRegistryClient>();
-builder.Services.AddSingleton<IDocUrlResolver, DocRAG.Ingestion.Ecosystems.NuGet.NuGetDocUrlResolver>();
+builder.Services.AddSingleton<IProjectFileParser, SaddleRAG.Ingestion.Ecosystems.NuGet.NuGetProjectFileParser>();
+builder.Services.AddSingleton<IPackageRegistryClient, SaddleRAG.Ingestion.Ecosystems.NuGet.NuGetRegistryClient>();
+builder.Services.AddSingleton<IDocUrlResolver, SaddleRAG.Ingestion.Ecosystems.NuGet.NuGetDocUrlResolver>();
 
 // npm ecosystem
-builder.Services.AddSingleton<IProjectFileParser, DocRAG.Ingestion.Ecosystems.Npm.NpmProjectFileParser>();
-builder.Services.AddSingleton<IPackageRegistryClient, DocRAG.Ingestion.Ecosystems.Npm.NpmRegistryClient>();
-builder.Services.AddSingleton<IDocUrlResolver, DocRAG.Ingestion.Ecosystems.Npm.NpmDocUrlResolver>();
+builder.Services.AddSingleton<IProjectFileParser, SaddleRAG.Ingestion.Ecosystems.Npm.NpmProjectFileParser>();
+builder.Services.AddSingleton<IPackageRegistryClient, SaddleRAG.Ingestion.Ecosystems.Npm.NpmRegistryClient>();
+builder.Services.AddSingleton<IDocUrlResolver, SaddleRAG.Ingestion.Ecosystems.Npm.NpmDocUrlResolver>();
 
 // pip ecosystem
-builder.Services.AddSingleton<IProjectFileParser, DocRAG.Ingestion.Ecosystems.Pip.PipProjectFileParser>();
-builder.Services.AddSingleton<IPackageRegistryClient, DocRAG.Ingestion.Ecosystems.Pip.PyPiRegistryClient>();
-builder.Services.AddSingleton<IDocUrlResolver, DocRAG.Ingestion.Ecosystems.Pip.PipDocUrlResolver>();
+builder.Services.AddSingleton<IProjectFileParser, SaddleRAG.Ingestion.Ecosystems.Pip.PipProjectFileParser>();
+builder.Services.AddSingleton<IPackageRegistryClient, SaddleRAG.Ingestion.Ecosystems.Pip.PyPiRegistryClient>();
+builder.Services.AddSingleton<IDocUrlResolver, SaddleRAG.Ingestion.Ecosystems.Pip.PipDocUrlResolver>();
 
 // Dependency indexing orchestrator
-builder.Services.AddSingleton<DocRAG.Ingestion.Scanning.DependencyIndexer>();
+builder.Services.AddSingleton<SaddleRAG.Ingestion.Scanning.DependencyIndexer>();
 ```
 
 Remove the `ProjectScanner` registration if it still exists.
 
 Add using statements at the top:
 ```csharp
-using DocRAG.Core.Interfaces;
+using SaddleRAG.Core.Interfaces;
 ```
 
-- [ ] **Step 2: Update DocRAG.Cli/Program.cs**
+- [ ] **Step 2: Update SaddleRAG.Cli/Program.cs**
 
 Remove any references to `ProjectScanner`. If the CLI has a `scan` command that uses `ProjectScanner`, either remove it or update it to use `NuGetProjectFileParser`.
 
 - [ ] **Step 3: Add Microsoft.Extensions.Http to Ingestion project**
 
-In `DocRAG.Ingestion/DocRAG.Ingestion.csproj`, add:
+In `SaddleRAG.Ingestion/SaddleRAG.Ingestion.csproj`, add:
 ```xml
 <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.0" />
 ```
 
 - [ ] **Step 4: Build the full solution**
 
-Run: `dotnet build E:/Projects/RAG/DocRAG.slnx`
+Run: `dotnet build E:/Projects/RAG/SaddleRAG.slnx`
 Expected: Build succeeded, 0 warnings, 0 errors
 
 - [ ] **Step 5: Commit**
